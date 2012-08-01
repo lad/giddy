@@ -185,20 +185,39 @@ function! CalcStatusWinSize(lines, min_lines) abort
 endfunction
 
 
+function! CreateScratchBuffer(name, size)
+    let l:winnr = bufwinnr('^' . a:name . '$')
+    if l:winnr >= 0
+        execute l:winnr . 'wincmd w'
+        setlocal modifiable
+        silent! execute 'normal ggdG'
+    else
+        execute a:size . 'new ' . a:name
+        setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile
+        setlocal modifiable
+    endif
+endfunction
+
+
 function! Gstatus() abort
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        let l:winsize = CalcStatusWinSize(l:lines, 5)
-        execute l:winsize . 'new'
-        set modifiable
+        "let l:winsize = CalcStatusWinSize(l:lines, 5)
+        "execute l:winsize . 'new status'
+        call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 5))
+        call append(line('$'), ['q = quit'])
         call append(line('$'), l:lines)
         runtime syntax/git-status.vim
-        set cursorline
+        setlocal cursorline
+        " delete without saving to a register
         execute 'delete _'
-        set nomodified
-        set nomodifiable
-        wincmd p
+        setlocal nomodified
+        setlocal nomodifiable
+
+        " Local mappings for the status buffer
+        nnoremap <buffer> q :quit<CR>
+        "wincmd p
     endif
 endfunction
 
