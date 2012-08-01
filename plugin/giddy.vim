@@ -54,6 +54,7 @@ nnoremap gb                 :Gbranch<CR>
 nnoremap gB                 :Gbranches<CR>
 nnoremap gC                 :GcreateBranch<CR>
 nnoremap gD                 :GdeleteBranch<CR>
+nnoremap gl                 :Glog<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -206,7 +207,6 @@ function! Gstatus() abort
         "let l:winsize = CalcStatusWinSize(l:lines, 5)
         "execute l:winsize . 'new status'
         call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 5))
-        call append(line('$'), ['q = quit'])
         call append(line('$'), l:lines)
         runtime syntax/git-status.vim
         setlocal cursorline
