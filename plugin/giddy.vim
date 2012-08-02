@@ -1,4 +1,4 @@
-" giddy - a simple git plugin
+" giddy - a vim git plugin
 "
 " Author: louisadunne@gmail.com
 " License: GPLv2
@@ -380,5 +380,7 @@ function! Glog(arg) abort
 
         " Local mappings for the status buffer
         nnoremap <buffer> q :bwipe!<CR>
+
+        wincmd p
     endif
 endfunction
