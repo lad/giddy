@@ -35,26 +35,28 @@ command! Gbranches          call Gbranches()
 command! GcreateBranch      call GcreateBranch()
 command! GdeleteBranch      call GdeleteBranch()
 command! GwipeBranch        call GwipeBranch()
-command! Gdiff              call Gdiff(expand('%:p'))
+command! GdiffThis          call Gdiff(expand('%:p'))
 command! GdiffAll           call Gdiff(s:ALL)
 command! GdiffStaged        call GdiffStaged(expand('%:p'))
 command! GdiffStagedAll     call GdiffStaged(s:ALL)
-command! Gadd               call Gadd(expand('%:p')
+command! GaddThis           call Gadd(expand('%:p')
 command! GaddAll            call Gadd(s:ALL)
 command! GaddInteractive    call Gadd(s:INTERACTIVE)
 command! Gcommit            call Gcommit()
 command! GcommitAmend       call Gcommit(s:AMEND)
 command! Gpush              call Gpush()
 command! Greview            call Greview()
-command! Glog               call Glog(expand('%:p'))
+command! GlogThis           call Glog(expand('%:p'))
 command! GlogAll            call Glog(s:ALL)
 
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
 nnoremap gB                 :Gbranches<CR>
 nnoremap gC                 :GcreateBranch<CR>
-nnoremap gD                 :GdeleteBranch<CR>
-nnoremap gl                 :Glog<CR>
+nnoremap gR                 :GdeleteBranch<CR>
+nnoremap gd                 :GdiffThis<CR>
+nnoremap gD                 :GdiffAll<CR>
+nnoremap gl                 :GlogThis<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -103,10 +105,10 @@ function! Git(args) abort
         return -1
     endif
 
-    if strlen(l:output) == 0
-        call Error('No output from "git ' . a:args . '"')
-        return -1
-    endif
+    "if strlen(l:output) == 0
+        "call Error('No output from "git ' . a:args . '"')
+        "return -1
+    "endif
 
     return l:output
 endfunction
@@ -180,8 +182,8 @@ function! UserInput(prompt) abort
 endfunction
 
 
-function! CalcStatusWinSize(lines, min_lines) abort
-    let l:max_win_size = max([float2nr(winheight(winnr()) * 0.3), a:min_lines])
+function! CalcStatusWinSize(lines, scale, min_lines) abort
+    let l:max_win_size = max([float2nr(winheight(winnr()) * a:scale), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
 
@@ -204,9 +206,7 @@ function! Gstatus() abort
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        "let l:winsize = CalcStatusWinSize(l:lines, 5)
-        "execute l:winsize . 'new status'
-        call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 5))
+        call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 0.3, 5))
         call append(line('$'), l:lines)
         runtime syntax/git-status.vim
         setlocal cursorline
@@ -216,7 +216,8 @@ function! Gstatus() abort
         setlocal nomodifiable
 
         " Local mappings for the status buffer
-        nnoremap <buffer> q :quit<CR>
+        nnoremap <buffer> q :bwipe<CR>
+        nnoremap <buffer> <silent> a :call GstatusAdd()<CR>
         "wincmd p
     endif
 endfunction
@@ -287,23 +288,56 @@ function! GwipeBranch() abort
 endfunction
 
 
-function! Gdiff(args) abort
-    if a:args != 1
-        " ALL
-        let dargs = a:args
+function! Gdiff(arg) abort
+    if a:arg == s:ALL
+        let l:filename = ''
     else
-        let dargs = ''
+        let l:filename = a:arg
     endif
-    let output = Git('diff ' . dargs)
-    if output != -1
-        echo output
+    let l:output = Git('diff ' . l:filename)
+    if l:output != -1
+        let l:lines = split(l:output, '\n')
+        call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 0.5, 5))
+        call append(line('$'), l:lines)
+        runtime syntax/git-diff.vim
+        " delete without saving to a register
+        execute 'delete _'
+        setlocal nomodified
+        setlocal nomodifiable
+
+        " Local mappings for the status buffer
+        nnoremap <buffer> q :bwipe!<CR>
+    endif
+endfunction
+
+let s:MatchAdd = 'use "git add <file>..."'
+let s:MatchModified = '#[\t ]\+modified:   \zs\(.*\)'
+
+function! GstatusAdd() abort
+    let l:linenr = line('.')
+    let l:filename = matchstr(getline(l:linenr), s:MatchModified)
+    if strlen(l:filename)
+        for l:n in range(l:linenr - 1, 1, -1)
+            let l:line = getline(l:n)
+            if match(getline(n), s:MatchAdd) != -1
+                wincmd p
+                let l:output = Git('add ' . l:filename)
+                if l:output == -1
+                    return
+                endif
+                call Gstatus()
+                break
+            endif
+        endfor
     endif
 endfunction
 
 
-
-function! Gadd() abort
-    call Error('Not implemented yet.')
+function! Gadd(filename) abort
+    let l:output = Git(a:filename)
+    if l:output != -1
+        echo l:output
+    endif
 endfunction
 
 
@@ -327,14 +361,24 @@ function! Greview() abort
 endfunction
 
 
-function! Glog(args) abort
-    if a:args != 1
-        let l:args = a:args
+function! Glog(arg) abort
+    if a:arg == s:ALL
+        let l:filename = ''
     else
-        let l:args = ''
+        let l:filename = a:arg
     endif
-    let l:output = Git('log ' . l:args)
+    let l:output = Git('log ' . l:filename)
     if l:output != -1
-        echo l:output
+        let l:lines = split(l:output, '\n')
+        call CreateScratchBuffer('_git_log', CalcStatusWinSize(l:lines, 0.5, 5))
+        call append(line('$'), l:lines)
+        runtime syntax/git-log.vim
+        " delete without saving to a register
+        execute 'delete _'
+        setlocal nomodified
+        setlocal nomodifiable
+
+        " Local mappings for the status buffer
+        nnoremap <buffer> q :bwipe!<CR>
     endif
 endfunction
