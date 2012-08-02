@@ -201,24 +201,28 @@ function! CreateScratchBuffer(name, size)
     endif
 endfunction
 
+let s:NothingToCommit = 'nothing to commit (working directory clean)'
 
 function! Gstatus() abort
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 0.3, 5))
-        call append(line('$'), l:lines)
-        runtime syntax/git-status.vim
-        setlocal cursorline
-        " delete without saving to a register
-        execute 'delete _'
-        setlocal nomodified
-        setlocal nomodifiable
+        if len(l:lines) == 2 && l:lines[1] == s:NothingToCommit
+            echo s:NothingToCommit
+        else
+            call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 0.3, 5))
+            call append(line('$'), l:lines)
+            runtime syntax/git-status.vim
+            setlocal cursorline
+            " delete without saving to a register
+            execute 'delete _'
+            setlocal nomodified
+            setlocal nomodifiable
 
-        " Local mappings for the status buffer
-        nnoremap <buffer> q :bwipe<CR>
-        nnoremap <buffer> <silent> a :call GstatusAdd()<CR>
-        "wincmd p
+            " Local mappings for the status buffer
+            nnoremap <buffer> q :bwipe<CR>
+            nnoremap <buffer> <silent> a :call GstatusAdd()<CR>
+        endif
     endif
 endfunction
 
@@ -310,7 +314,7 @@ function! Gdiff(arg) abort
 
             " Local mappings for the status buffer
             nnoremap <buffer> q :bwipe!<CR>
-        Wndif
+        endif
     endif
 endfunction
 
