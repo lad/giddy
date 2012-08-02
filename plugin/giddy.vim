@@ -384,7 +384,5 @@ function! Glog(arg) abort
 
         " Local mappings for the status buffer
         nnoremap <buffer> q :bwipe!<CR>
-
-        wincmd p
     endif
 endfunction
