@@ -296,17 +296,21 @@ function! Gdiff(arg) abort
     endif
     let l:output = Git('diff ' . l:filename)
     if l:output != -1
-        let l:lines = split(l:output, '\n')
-        call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 0.5, 5))
-        call append(line('$'), l:lines)
-        runtime syntax/git-diff.vim
-        " delete without saving to a register
-        execute 'delete _'
-        setlocal nomodified
-        setlocal nomodifiable
+        if l:output == ''
+            echo 'No changes'
+        else
+            let l:lines = split(l:output, '\n')
+            call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 0.5, 5))
+            call append(line('$'), l:lines)
+            runtime syntax/git-diff.vim
+            " delete without saving to a register
+            execute 'delete _'
+            setlocal nomodified
+            setlocal nomodifiable
 
-        " Local mappings for the status buffer
-        nnoremap <buffer> q :bwipe!<CR>
+            " Local mappings for the status buffer
+            nnoremap <buffer> q :bwipe!<CR>
+        Wndif
     endif
 endfunction
 
