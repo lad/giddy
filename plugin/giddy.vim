@@ -26,10 +26,14 @@ endif
 let s:ALL=1
 let s:INTERACTIVE=2
 let s:AMEND=3
+let s:FILE=4
 
 " set cursorline
 
 command! Gstatus            call Gstatus()
+command! GstatusAddFile     call GstatusAdd(s:FILE)
+command! GstatusAddAll      call GstatusAdd(s:ALL)
+command! GstatusReset       call GstatusReset()
 command! Gbranch            call Gbranch()
 command! Gbranches          call Gbranches()
 command! GcreateBranch      call GcreateBranch()
@@ -210,7 +214,8 @@ function! Gstatus() abort
         if len(l:lines) == 2 && l:lines[1] == s:NothingToCommit
             echo s:NothingToCommit
         else
-            call CreateScratchBuffer('_git_status', CalcStatusWinSize(l:lines, 0.3, 5))
+            let l:size = CalcStatusWinSize(l:lines, 0.3, 5)
+            call CreateScratchBuffer('_git_status', l:size)
             call append(line('$'), l:lines)
             runtime syntax/git-status.vim
             setlocal cursorline
@@ -218,11 +223,90 @@ function! Gstatus() abort
             execute 'delete _'
             setlocal nomodified
             setlocal nomodifiable
+            " resize doesn't work so well, this expands but doesn't shrink a window height
+            let &winheight = l:size
 
             " Local mappings for the status buffer
             nnoremap <buffer> q :bwipe<CR>
-            nnoremap <buffer> <silent> a :call GstatusAdd()<CR>
+            nnoremap <buffer> <silent> a :GstatusAddFile<CR>
+            nnoremap <buffer> <silent> A :GstatusAddAll<CR>
+            nnoremap <buffer> <silent> r :GstatusReset<CR>
         endif
+    endif
+endfunction
+
+let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
+let s:MatchReset = 'use "git reset HEAD <file>..."'
+let s:MatchModified = '#\tmodified:   \zs\(.*\)'
+let s:MatchNew = '#\tnew file:   \zs\(.*\)'
+let s:MatchDeleted = '#\tdeleted:    \zs\(.*\)'
+let s:MatchUntracked = '#\t\zs\(.*\)'
+
+function! GstatusAdd(arg) abort
+    let l:linenr = line('.')
+    if a:arg == s:FILE
+        let l:filename = matchstr(getline(l:linenr), s:MatchModified)
+        if strlen(l:filename) == 0
+            let l:filename = matchstr(getline(l:linenr), s:MatchDeleted)
+        endif
+        if strlen(l:filename) == 0
+            let l:filename = matchstr(getline(l:linenr), s:MatchUntracked)
+        endif
+    else
+        let l:filename = ''
+    endif
+
+
+    if (strlen(l:filename) != 0) || (a:arg == s:ALL)
+        echo l:filename
+        for l:n in range(l:linenr - 1, 1, -1)
+            let l:line = getline(l:n)
+            if match(l:line, s:MatchAdd) != -1
+                wincmd p
+                let l:output = Git('add -A ' . l:filename)
+                if l:output == -1
+                    return
+                endif
+                call Gstatus()
+                if a:arg == s:FILE
+                    call search(l:filename . '$')
+                    execute 'normal ^'
+                else
+                    call cursor(0, 0)
+                endif
+                break
+            endif
+        endfor
+    endif
+endfunction
+
+
+function! GstatusReset() abort
+    let l:linenr = line('.')
+    let l:filename = matchstr(getline(l:linenr), s:MatchModified)
+    if strlen(l:filename) == 0
+        let l:filename = matchstr(getline(l:linenr), s:MatchDeleted)
+    endif
+    if strlen(l:filename) == 0
+        let l:filename = matchstr(getline(l:linenr), s:MatchNew)
+    endif
+    if strlen(l:filename)
+        for l:n in range(l:linenr - 1, 1, -1)
+            let l:line = getline(l:n)
+            if match(getline(n), s:MatchReset) != -1
+                wincmd p
+                " Need -q for reset otherwise it will exit with a non-zero exit
+                " code in some cases
+                let l:output = Git('reset -q -- ' . l:filename)
+                if l:output == -1
+                    return
+                endif
+                call Gstatus()
+                call search(l:filename . '$')
+                execute 'normal ^'
+                break
+            endif
+        endfor
     endif
 endfunction
 
@@ -301,7 +385,7 @@ function! Gdiff(arg) abort
     let l:output = Git('diff ' . l:filename)
     if l:output != -1
         if l:output == ''
-            echo 'No changes'
+            echo 'no changes'
         else
             let l:lines = split(l:output, '\n')
             call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 0.5, 5))
@@ -317,29 +401,6 @@ function! Gdiff(arg) abort
         endif
     endif
 endfunction
-
-let s:MatchAdd = 'use "git add <file>..."'
-let s:MatchModified = '#[\t ]\+modified:   \zs\(.*\)'
-
-function! GstatusAdd() abort
-    let l:linenr = line('.')
-    let l:filename = matchstr(getline(l:linenr), s:MatchModified)
-    if strlen(l:filename)
-        for l:n in range(l:linenr - 1, 1, -1)
-            let l:line = getline(l:n)
-            if match(getline(n), s:MatchAdd) != -1
-                wincmd p
-                let l:output = Git('add ' . l:filename)
-                if l:output == -1
-                    return
-                endif
-                call Gstatus()
-                break
-            endif
-        endfor
-    endif
-endfunction
-
 
 function! Gadd(filename) abort
     let l:output = Git(a:filename)
