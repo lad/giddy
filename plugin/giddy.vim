@@ -4,13 +4,16 @@
 " License: GPLv2
 " Home: http://github.com/lad/giddy/
 " Version: 1.0
-" NOTE: This is intentionally a simple plugin. If you need a more fully
-"       featured Git plugin see Tim Pope's fugitive or motemen's git-vim
-
-
-" Options
-"   GiddyTrackingBranch     - if set it will be used when creating branches as
-"                             the name of the remote tracking branch
+" Options:
+"   GiddyTrackingBranch     - If set this will be used when creating branches
+"                             as the name of the remote tracking branch.
+"   GiddyScaleWindow        - If set the value will be multiple by the number
+"                             of lines in the current window to calculate the
+"                             size of the git split window.
+"                           - The maximum value is 1 which cause Giddy now to
+"                             split the window but use the entire current
+"                             window.
+"                           - By default the value is 0.5.
 
 
 if exists('g:giddy_loaded')
@@ -18,22 +21,43 @@ if exists('g:giddy_loaded')
 endif
 "let g:giddy_loaded=1
 
+if exists('g:GiddyScaleWindow')
+    if g:GiddyScaleWindow > 1
+        call Error('Invalid value for GiddyScaleWindow (' .
+                   \ printf('%.2f', GiddyScaleWindow) . 
+                   \ '). Maximum allowable value is 1.')
+        "call Error(printf('%s (%.2f)%s', 'Invalid value for GiddyScaleWindow',
+        "           \ GiddyScaleWindow, '. Maximum allowable value is 1.'))
+    endif
+else
+    let g:GiddyScaleWindow=0.5
+endif
+
 if !exists('g:added_runtimepath')
     let &runtimepath = expand(&runtimepath) . ',.'
     let g:added_runtimepath = 1
 endif
 
 let s:ALL=1
-let s:INTERACTIVE=2
-let s:AMEND=3
-let s:FILE=4
+let s:FILE=2
+let s:NEW=3
+let s:AMEND=4
+let s:IGNORE_EXIT_CODE=5
+let s:RED = 'red'
+let s:GREEN = 'green'
 
-" set cursorline
+let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
+let s:MatchReset = 'use "git reset HEAD <file>..."'
+let s:MatchModified = '#\tmodified:   \zs\(.*\)'
+let s:MatchNew = '#\tnew file:   \zs\(.*\)'
+let s:MatchDeleted = '#\tdeleted:    \zs\(.*\)'
+let s:MatchUntracked = '#\t\zs\(.*\)'
+let s:NothingToCommit = 'nothing to commit (working directory clean)'
+let s:MatchCheckout = 'use "git checkout -- <file>..."'
+let s:NoChanges = 'no changes added to commit'
+
 
 command! Gstatus            call Gstatus()
-command! GstatusAddFile     call GstatusAdd(s:FILE)
-command! GstatusAddAll      call GstatusAdd(s:ALL)
-command! GstatusReset       call GstatusReset()
 command! Gbranch            call Gbranch()
 command! Gbranches          call Gbranches()
 command! GcreateBranch      call GcreateBranch()
@@ -43,10 +67,7 @@ command! GdiffThis          call Gdiff(expand('%:p'))
 command! GdiffAll           call Gdiff(s:ALL)
 command! GdiffStaged        call GdiffStaged(expand('%:p'))
 command! GdiffStagedAll     call GdiffStaged(s:ALL)
-command! GaddThis           call Gadd(expand('%:p')
-command! GaddAll            call Gadd(s:ALL)
-command! GaddInteractive    call Gadd(s:INTERACTIVE)
-command! Gcommit            call Gcommit()
+command! Gcommit            call Gcommit(s:NEW)
 command! GcommitAmend       call Gcommit(s:AMEND)
 command! Gpush              call Gpush()
 command! Greview            call Greview()
@@ -56,11 +77,12 @@ command! GlogAll            call Glog(s:ALL)
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
 nnoremap gB                 :Gbranches<CR>
-nnoremap gC                 :GcreateBranch<CR>
+nnoremap gc                 :GcreateBranch<CR>
 nnoremap gR                 :GdeleteBranch<CR>
 nnoremap gd                 :GdiffThis<CR>
 nnoremap gD                 :GdiffAll<CR>
 nnoremap gl                 :GlogThis<CR>
+nnoremap gC                 :Gcommit<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -68,13 +90,20 @@ highlight RedHL             ctermfg=red cterm=bold
 highlight GreenHL           ctermfg=green cterm=bold
 
 
-function! Error(args)
-    echohl ErrorHL | echo a:args | echohl None
+function! Error(text)
+    redraw
+    echohl ErrorHL | echom a:text | echohl None
 endfunction
 
 
-function! Echo(args)
-    echohl GoodHL | echo a:args | echohl None
+function! Echo(text)
+    echohl GoodHL | echo a:text | echohl None
+endfunction
+
+
+function! EchoWait(args)
+    echo a:args
+    call input('>')
 endfunction
 
 
@@ -92,7 +121,7 @@ function! Strip(str)
 endfunction
 
 
-function! Git(args) abort
+function! Git(args, ...) abort
     if SetTopLevel() == -1
         call Error("Couldn't determine git dir")
         return -1
@@ -101,6 +130,12 @@ function! Git(args) abort
     " Run git from the repo's top-level dir
     let l:output = system('cd ' . b:top_level . '; git ' . a:args)
     if v:shell_error
+        echo b:top_level
+        call input(':')
+        if a:0 == 1 && a:1 == s:IGNORE_EXIT_CODE
+            return l:output
+        endif
+
         if strlen(l:output)
             call Error(l:output)
         else
@@ -109,24 +144,17 @@ function! Git(args) abort
         return -1
     endif
 
-    "if strlen(l:output) == 0
-        "call Error('No output from "git ' . a:args . '"')
-        "return -1
-    "endif
-
     return l:output
 endfunction
 
 
 function! SetTopLevel() abort
-"   if !exists('b:top_level')
-        let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
-        let b:top_level = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
-        if v:shell_error
-            return -1
-        endif
-        let b:top_level = substitute(b:top_level, '\n', "", "")
-"   endif
+    let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
+    let b:top_level = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
+    if v:shell_error
+        return -1
+    endif
+    let b:top_level = substitute(b:top_level, '\n', "", "")
     return 0
 endfunction
 
@@ -158,10 +186,10 @@ function! ExistingBranches() abort
         let l:current = ''
         for l:line in split(l:output, '\n')
             if l:line[0] == '*'
-                call EchoHL(l:line, 'green')
+                call EchoHL(l:line, s:GREEN)
                 let l:current = substitute(l:line, '^\* \(.*\)', '\1', '')
             elseif l:line =~? 'remotes/'
-                call EchoHL(l:line, 'red')
+                call EchoHL(l:line, s:RED)
             else
                 echo l:line
             endif
@@ -186,8 +214,8 @@ function! UserInput(prompt) abort
 endfunction
 
 
-function! CalcStatusWinSize(lines, scale, min_lines) abort
-    let l:max_win_size = max([float2nr(winheight(winnr()) * a:scale), a:min_lines])
+function! CalcStatusWinSize(lines, min_lines) abort
+    let l:max_win_size = max([float2nr(&lines * g:GiddyScaleWindow), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
 
@@ -199,22 +227,135 @@ function! CreateScratchBuffer(name, size)
         setlocal modifiable
         silent! execute 'normal ggdG'
     else
-        execute a:size . 'new ' . a:name
+        execute 'silent ' . a:size . 'new ' . a:name
         setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile
         setlocal modifiable
     endif
 endfunction
 
-let s:NothingToCommit = 'nothing to commit (working directory clean)'
+
+function! FindStatusFile()
+    let l:linenr = line('.')
+    let l:filename = matchstr(getline(l:linenr), s:MatchModified)
+    if strlen(l:filename) == 0
+        let l:filename = matchstr(getline(l:linenr), s:MatchDeleted)
+    endif
+    if strlen(l:filename) == 0
+        let l:filename = matchstr(getline(l:linenr), s:MatchUntracked)
+    endif
+    return l:filename
+endfunction
+
+
+function! Edit()
+    let l:filename = FindStatusFile()
+    bunload
+    execute 'edit ' . s:status_dir . '/' . l:filename
+endfunction
+
+
+function! Checkout()
+    " Get the filename on the current line
+    let l:filename = FindStatusFile()
+    " Check we have a filename and that "use git checkout" appears on a line
+    " somewhere above the current line
+    if strlen(l:filename) && MatchAbove(s:MatchCheckout) != -1
+        " Confirm this since it wipes out any changes made in that file.
+        let l:yn = UserInput('Checkout ' . l:filename . ' [y/n]')
+        if l:yn ==? 'y'
+            wincmd p
+            let l:output = Git('checkout ' . l:filename)
+            if l:output == -1
+                return
+            endif
+            redraw  "clear the status line
+            echo 'Checked out ' . l:filename
+            return Gstatus()
+        else
+            redraw  "clear the status line
+            echo 'Checkout cancelled'
+        endif
+    endif
+endfunction
+
+
+function! MatchAbove(text) abort
+    " Matches the given text anywhere above the current line.
+    " Returns the line number of the match or -1
+    for l:n in range(line('.'), 1, -1)
+        let l:line = getline(l:n)
+        if match(l:line, a:text) != -1
+            return l:n
+        endif
+    endfor
+    return -1
+endfunction
+
+
+function! StatusAdd(arg) abort
+    " Add the file on the current line to git's staging area, or add all files is arg is s:ALL
+    if a:arg == s:FILE
+        let l:filename = FindStatusFile()
+
+        if strlen(l:filename) != 0
+            if MatchAbove(s:MatchAdd) != -1
+                wincmd p
+                let l:output = Git('add -A ' . l:filename)
+                if l:output == -1
+                    return
+                endif
+                call Gstatus()
+                call search(l:filename . '$')
+                execute 'normal ^'
+            endif
+        else
+            let l:filename = ''
+        endif
+    elseif a:arg == s:ALL
+        let l:output = Git('add -A')
+        if l:output == -1
+            return
+        endif
+        call Gstatus()
+        call cursor(0, 0)
+    else
+        call Error('Script Error: invalid argument')
+    endif
+endfunction
+
+
+function! StatusReset() abort
+    let l:filename = FindStatusFile()
+
+    if strlen(l:filename)
+        if MatchAbove(s:MatchReset) != -1
+            wincmd p
+            " Need -q for reset otherwise it will exit with a non-zero exit
+            " code in some cases
+            let l:output = Git('reset -q -- ' . l:filename)
+            if l:output == -1
+                return
+            endif
+            call Gstatus()
+            call search(l:filename . '$')
+            execute 'normal ^'
+        endif
+    endif
+endfunction
+
+
+" ---------------- Callable git functions from here ------------------
+
 
 function! Gstatus() abort
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
         if len(l:lines) == 2 && l:lines[1] == s:NothingToCommit
+            silent! bwipe '_git_status'
             echo s:NothingToCommit
         else
-            let l:size = CalcStatusWinSize(l:lines, 0.3, 5)
+            let l:size = CalcStatusWinSize(l:lines, 5)
             call CreateScratchBuffer('_git_status', l:size)
             call append(line('$'), l:lines)
             runtime syntax/git-status.vim
@@ -226,87 +367,18 @@ function! Gstatus() abort
             " resize doesn't work so well, this expands but doesn't shrink a window height
             let &winheight = l:size
 
-            " Local mappings for the status buffer
-            nnoremap <buffer> q :bwipe<CR>
-            nnoremap <buffer> <silent> a :GstatusAddFile<CR>
-            nnoremap <buffer> <silent> A :GstatusAddAll<CR>
-            nnoremap <buffer> <silent> r :GstatusReset<CR>
+            " Local commands and their mappings for the status buffer
+            command! -buffer StatusAddFile      call StatusAdd(s:FILE)
+            command! -buffer StatusAddAll       call StatusAdd(s:ALL)
+            command! -buffer StatusReset        call StatusReset()
+
+            nnoremap <buffer> <silent> a        :StatusAddFile<CR>
+            nnoremap <buffer> <silent> A        :StatusAddAll<CR>
+            nnoremap <buffer> <silent> r        :StatusReset<CR>
+            nnoremap <buffer> <silent> e        :call Edit()<CR>
+            nnoremap <buffer> <silent> c        :call Checkout()<CR>
+            nnoremap <buffer> <silent> q        :bwipe<CR>
         endif
-    endif
-endfunction
-
-let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
-let s:MatchReset = 'use "git reset HEAD <file>..."'
-let s:MatchModified = '#\tmodified:   \zs\(.*\)'
-let s:MatchNew = '#\tnew file:   \zs\(.*\)'
-let s:MatchDeleted = '#\tdeleted:    \zs\(.*\)'
-let s:MatchUntracked = '#\t\zs\(.*\)'
-
-function! GstatusAdd(arg) abort
-    let l:linenr = line('.')
-    if a:arg == s:FILE
-        let l:filename = matchstr(getline(l:linenr), s:MatchModified)
-        if strlen(l:filename) == 0
-            let l:filename = matchstr(getline(l:linenr), s:MatchDeleted)
-        endif
-        if strlen(l:filename) == 0
-            let l:filename = matchstr(getline(l:linenr), s:MatchUntracked)
-        endif
-    else
-        let l:filename = ''
-    endif
-
-
-    if (strlen(l:filename) != 0) || (a:arg == s:ALL)
-        echo l:filename
-        for l:n in range(l:linenr - 1, 1, -1)
-            let l:line = getline(l:n)
-            if match(l:line, s:MatchAdd) != -1
-                wincmd p
-                let l:output = Git('add -A ' . l:filename)
-                if l:output == -1
-                    return
-                endif
-                call Gstatus()
-                if a:arg == s:FILE
-                    call search(l:filename . '$')
-                    execute 'normal ^'
-                else
-                    call cursor(0, 0)
-                endif
-                break
-            endif
-        endfor
-    endif
-endfunction
-
-
-function! GstatusReset() abort
-    let l:linenr = line('.')
-    let l:filename = matchstr(getline(l:linenr), s:MatchModified)
-    if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:MatchDeleted)
-    endif
-    if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:MatchNew)
-    endif
-    if strlen(l:filename)
-        for l:n in range(l:linenr - 1, 1, -1)
-            let l:line = getline(l:n)
-            if match(getline(n), s:MatchReset) != -1
-                wincmd p
-                " Need -q for reset otherwise it will exit with a non-zero exit
-                " code in some cases
-                let l:output = Git('reset -q -- ' . l:filename)
-                if l:output == -1
-                    return
-                endif
-                call Gstatus()
-                call search(l:filename . '$')
-                execute 'normal ^'
-                break
-            endif
-        endfor
     endif
 endfunction
 
@@ -388,7 +460,7 @@ function! Gdiff(arg) abort
             echo 'no changes'
         else
             let l:lines = split(l:output, '\n')
-            call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 0.5, 5))
+            call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 5))
             call append(line('$'), l:lines)
             runtime syntax/git-diff.vim
             " delete without saving to a register
@@ -398,35 +470,53 @@ function! Gdiff(arg) abort
 
             " Local mappings for the status buffer
             nnoremap <buffer> q :bwipe!<CR>
+            nnoremap <buffer> <silent> zj :call NextDiff()<CR>
+            nnoremap <buffer> <silent> zk ?^@@<CR>
         endif
     endif
 endfunction
 
-function! Gadd(filename) abort
-    let l:output = Git(a:filename)
-    if l:output != -1
-        echo l:output
+function! NextDiff() abort
+    call search('^@@')
+    " If there's less than 5 lines viewable from the diff reposition it to the
+    " center of the window
+    if winheight(winnr()) - winline() < 5
+        execute 'normal z.'
+    endif
+endfunction
+
+" Use --porcelain
+function! Gcommit(arg) abort
+    if a:arg == s:NEW
+        let l:tmpfile = tempname()
+        let l:commit_msg = Git('commit --dry-run', s:IGNORE_EXIT_CODE)
+        let l:lines = split(l:commit_msg, '\n')
+        let l:len = len(l:lines)
+        if l:lines[l:len - 1] =~ s:NoChanges
+            call Error(s:NoChanges)
+            return Gstatus()
+        endif
+        execute 'silent ' . 'split ' . l:tmpfile
+        call append(line('$'), l:lines)
+        set filetype=gitcommit
+    elseif a:arg == s:AMEND
+        call Error('Not implemented yet.')
     endif
 endfunction
 
 
-function! GaddInteractive() abort
-    call Error('Not implemented yet.')
-endfunction
+function! CommitBufferPreCmd() abort
+    " Delete all comment lines
+    silent! execute 'g/^#/d'
 
-
-function! Gcommit() abort
-    call Error('Not implemented yet.')
-endfunction
-
-
-function! Gpush() abort
-    call Error('Not implemented yet.')
-endfunction
-
-
-function! Greview() abort
-    call Error('Not implemented yet.')
+    " Delete any blank lines at the end of the message
+    silent! execute 'normal G'
+    " b = search backwards, c = match current line if present
+    let l:line_num = search('^[^\s]', 'bc')
+    if l:line_num != -1 && l:line_num != line('$')
+        let l:line_num += 1
+        silent! execute l:line_num . ',$delete _'
+    endif
 endfunction
 
 
@@ -439,7 +529,7 @@ function! Glog(arg) abort
     let l:output = Git('log ' . l:filename)
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        call CreateScratchBuffer('_git_log', CalcStatusWinSize(l:lines, 0.5, 5))
+        call CreateScratchBuffer('_git_log', CalcStatusWinSize(l:lines, 5))
         call append(line('$'), l:lines)
         runtime syntax/git-log.vim
         " delete without saving to a register
@@ -450,4 +540,14 @@ function! Glog(arg) abort
         " Local mappings for the status buffer
         nnoremap <buffer> q :bwipe!<CR>
     endif
+endfunction
+
+
+function! Gpush() abort
+    call Error('Not implemented yet.')
+endfunction
+
+
+function! Greview() abort
+    call Error('Not implemented yet.')
 endfunction
