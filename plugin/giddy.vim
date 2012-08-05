@@ -122,11 +122,6 @@ endfunction
 
 
 function! Git(args, ...) abort
-    if SetTopLevel() == -1
-        call Error("Couldn't determine git dir")
-        return -1
-    endif
-
     " Run git from the repo's top-level dir
     let l:output = system('cd ' . b:top_level . '; git ' . a:args)
     if v:shell_error
@@ -149,12 +144,14 @@ endfunction
 
 
 function! SetTopLevel() abort
-    let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
-    let b:top_level = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
-    if v:shell_error
-        return -1
+    if !exists('b:top_level')
+        let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
+        let b:top_level = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
+        if v:shell_error
+            return -1
+        endif
+        let b:top_level = substitute(b:top_level, '\n', "", "")
     endif
-    let b:top_level = substitute(b:top_level, '\n', "", "")
     return 0
 endfunction
 
@@ -221,15 +218,22 @@ endfunction
 
 
 function! CreateScratchBuffer(name, size)
+    " Get the buffer number using the given name to check if already exists
     let l:winnr = bufwinnr('^' . a:name . '$')
     if l:winnr >= 0
+        " Change to that buffer and clear its contents
         execute l:winnr . 'wincmd w'
         setlocal modifiable
         silent! execute 'normal ggdG'
     else
+        " Set the value of top_level of the repository so we can set it in the new buffer
+        let l:top_level = b:top_level
+
+        " Create the buffer of that name and set it up as a scratch buffer
         execute 'silent ' . a:size . 'new ' . a:name
         setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile
         setlocal modifiable
+        let b:top_level = l:top_level
     endif
 endfunction
 
@@ -250,7 +254,7 @@ endfunction
 function! Edit()
     let l:filename = FindStatusFile()
     bunload
-    execute 'edit ' . s:status_dir . '/' . l:filename
+    execute 'edit ' . b:top_level . '/' . l:filename
 endfunction
 
 
@@ -344,10 +348,36 @@ function! StatusReset() abort
 endfunction
 
 
+function! NextDiff() abort
+    call search('^@@')
+    " If there's less than 5 lines viewable from the diff reposition it to the
+    " center of the window
+    if winheight(winnr()) - winline() < 5
+        execute 'normal z.'
+    endif
+endfunction
+
+
+function! CommitBufferPreCmd() abort
+    " Delete all comment lines
+    silent! execute 'g/^#/d'
+
+    " Delete any blank lines at the end of the message
+    silent! execute 'normal G'
+    " b = search backwards, c = match current line if present
+    let l:line_num = search('^[^\s]', 'bc')
+    if l:line_num != -1 && l:line_num != line('$')
+        let l:line_num += 1
+        silent! execute l:line_num . ',$delete _'
+    endif
+endfunction
+
+
 " ---------------- Callable git functions from here ------------------
 
 
 function! Gstatus() abort
+    call SetTopLevel()
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
@@ -384,6 +414,7 @@ endfunction
 
 
 function! Gbranch() abort
+    call SetTopLevel()
     let l:output = Git('branch')
     if l:output != -1
         let l:o = matchstr(split(l:output, '\n'), '\*\ze .*')
@@ -394,6 +425,7 @@ endfunction
 
 
 function! Gbranches() abort
+    call SetTopLevel()
     let l:current = ExistingBranches()
     if l:current != -1
         let l:br = Strip(UserInput('Switch branch [' . l:current . ']'))
@@ -409,6 +441,7 @@ endfunction
 
 
 function! GcreateBranch() abort
+    call SetTopLevel()
     let l:current = ExistingBranches()
     if l:current != -1
         let l:br = Strip(UserInput('Create branch'))
@@ -429,6 +462,7 @@ endfunction
 
 
 function! GdeleteBranch() abort
+    call SetTopLevel()
     let current = ExistingBranches()
     if current != -1
         let br = Strip(UserInput('Delete branch'))
@@ -444,11 +478,13 @@ endfunction
 
 
 function! GwipeBranch() abort
+    call SetTopLevel()
     call Error('Not implemented yet.')
 endfunction
 
 
 function! Gdiff(arg) abort
+    call SetTopLevel()
     if a:arg == s:ALL
         let l:filename = ''
     else
@@ -476,17 +512,9 @@ function! Gdiff(arg) abort
     endif
 endfunction
 
-function! NextDiff() abort
-    call search('^@@')
-    " If there's less than 5 lines viewable from the diff reposition it to the
-    " center of the window
-    if winheight(winnr()) - winline() < 5
-        execute 'normal z.'
-    endif
-endfunction
-
 " Use --porcelain
 function! Gcommit(arg) abort
+    call SetTopLevel()
     if a:arg == s:NEW
         let l:tmpfile = tempname()
         let l:commit_msg = Git('commit --dry-run', s:IGNORE_EXIT_CODE)
@@ -505,22 +533,8 @@ function! Gcommit(arg) abort
 endfunction
 
 
-function! CommitBufferPreCmd() abort
-    " Delete all comment lines
-    silent! execute 'g/^#/d'
-
-    " Delete any blank lines at the end of the message
-    silent! execute 'normal G'
-    " b = search backwards, c = match current line if present
-    let l:line_num = search('^[^\s]', 'bc')
-    if l:line_num != -1 && l:line_num != line('$')
-        let l:line_num += 1
-        silent! execute l:line_num . ',$delete _'
-    endif
-endfunction
-
-
 function! Glog(arg) abort
+    call SetTopLevel()
     if a:arg == s:ALL
         let l:filename = ''
     else
@@ -544,10 +558,12 @@ endfunction
 
 
 function! Gpush() abort
+    call SetTopLevel()
     call Error('Not implemented yet.')
 endfunction
 
 
 function! Greview() abort
+    call SetTopLevel()
     call Error('Not implemented yet.')
 endfunction
