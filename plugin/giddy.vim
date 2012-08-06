@@ -616,7 +616,6 @@ function! Gcommit(arg) abort
     " delete blank first line without saving to a register
     silent! execute 'delete _'
 
-    runtime syntax/git-commit.vim
     au! BufWrite <buffer> call CommitBufferAuBufWrite()
     au! BufUnload  <buffer> call CommitBufferAuBufUnload()
 endfunction
