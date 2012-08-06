@@ -11,7 +11,7 @@ syntax match gitStatusModified  +\t\zsmodified: .\++
 
 highlight link gitStatusComment     Comment
 
-highlight link gitStatusBranch      Title
+highlight gitStatusBranch ctermfg=2 cterm=underline,bold
 
 highlight link gitStatusUndracked   diffOnly
 highlight link gitStatusNewFile     diffAdded

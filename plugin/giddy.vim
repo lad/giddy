@@ -26,8 +26,6 @@ if exists('g:GiddyScaleWindow')
         call Error('Invalid value for GiddyScaleWindow (' .
                    \ printf('%.2f', GiddyScaleWindow) .
                    \ '). Maximum allowable value is 1.')
-        "call Error(printf('%s (%.2f)%s', 'Invalid value for GiddyScaleWindow',
-        "           \ GiddyScaleWindow, '. Maximum allowable value is 1.'))
     endif
 else
     let g:GiddyScaleWindow=0.5
@@ -43,6 +41,7 @@ let s:FILE=2
 let s:NEW=3
 let s:AMEND=4
 let s:IGNORE_EXIT_CODE=5
+let s:AGAIN=6
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -56,6 +55,10 @@ let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:MatchCheckout = 'use "git checkout -- <file>..."'
 let s:NoChanges = 'no changes added to commit'
 
+let s:GLOG_BUFFER = '_git_log'
+let s:GCOMMIT_BUFFER = '_git_commit'
+let s:GSTATUS_BUFFER = '_git_status'
+let s:GDIFF_BUFFER = '_git_diff'
 
 command! Gstatus            call Gstatus()
 command! Gbranch            call Gbranch()
@@ -82,6 +85,7 @@ nnoremap gR                 :GdeleteBranch<CR>
 nnoremap gd                 :GdiffThis<CR>
 nnoremap gD                 :GdiffAll<CR>
 nnoremap gl                 :GlogThis<CR>
+nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
@@ -89,23 +93,19 @@ highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
 highlight RedHL             ctermfg=red cterm=bold
 highlight GreenHL           ctermfg=green cterm=bold
 
-
 function! Error(text)
     redraw
     echohl ErrorHL | echom a:text | echohl None
 endfunction
 
-
 function! Echo(text)
     echohl GoodHL | echo a:text | echohl None
 endfunction
 
-
-function! EchoWait(args)
+function! EchoDebug(args)
     echo a:args
     call input('>')
 endfunction
-
 
 function! EchoHL(args, hl)
     if a:hl == 'red'
@@ -115,11 +115,9 @@ function! EchoHL(args, hl)
     endif
 endfunction
 
-
 function! Strip(str)
     return substitute(a:str, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
-
 
 function! Git(args, ...) abort
     " Run git from the repo's top-level dir
@@ -140,7 +138,6 @@ function! Git(args, ...) abort
     return l:output
 endfunction
 
-
 function! SetTopLevel() abort
     if !exists('b:top_level')
         let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
@@ -152,7 +149,6 @@ function! SetTopLevel() abort
     endif
     return 0
 endfunction
-
 
 function! GetCurrentBranch() abort
     let l:output = Git('branch -a')
@@ -173,8 +169,7 @@ function! GetCurrentBranch() abort
     endif
 endfunction
 
-
-function! ExistingBranches() abort
+function! EchoExistingBranches() abort
     let l:output = Git('branch -a')
     if l:output != -1
         echo 'Existing branches:'
@@ -200,7 +195,6 @@ function! ExistingBranches() abort
     endif
 endfunction
 
-
 function! UserInput(prompt) abort
     call inputsave()
     let l:in = input(a:prompt . ": ")
@@ -208,12 +202,10 @@ function! UserInput(prompt) abort
     return l:in
 endfunction
 
-
 function! CalcWinSize(lines, min_lines) abort
     let l:max_win_size = max([float2nr(&lines * g:GiddyScaleWindow), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
-
 
 function! CreateScratchBuffer(name, size)
     " Get the buffer number using the given name to check if already exists
@@ -235,7 +227,6 @@ function! CreateScratchBuffer(name, size)
     endif
 endfunction
 
-
 function! FindStatusFile()
     let l:linenr = line('.')
     let l:filename = matchstr(getline(l:linenr), s:MatchModified)
@@ -248,13 +239,11 @@ function! FindStatusFile()
     return l:filename
 endfunction
 
-
 function! Edit()
     let l:filename = FindStatusFile()
     bunload
     execute 'edit ' . b:top_level . '/' . l:filename
 endfunction
-
 
 function! Checkout()
     " Get the filename on the current line
@@ -271,15 +260,14 @@ function! Checkout()
                 return
             endif
             redraw  "clear the status line
-            echo 'Checked out ' . l:filename
+            call Echo('Checked out ' . l:filename)
             return Gstatus()
         else
             redraw  "clear the status line
-            echo 'Checkout cancelled'
+            call Error('Checkout cancelled')
         endif
     endif
 endfunction
-
 
 function! MatchAbove(text) abort
     " Matches the given text anywhere above the current line.
@@ -293,7 +281,6 @@ function! MatchAbove(text) abort
     return -1
 endfunction
 
-
 function! StatusAdd(arg) abort
     " Add the file on the current line to git's staging area, or add all files is arg is s:ALL
     if a:arg == s:FILE
@@ -306,7 +293,7 @@ function! StatusAdd(arg) abort
                 if l:output == -1
                     return
                 endif
-                call Gstatus()
+                call Gstatus(s:AGAIN)
                 call search(l:filename . '$')
                 execute 'normal ^'
             endif
@@ -318,13 +305,12 @@ function! StatusAdd(arg) abort
         if l:output == -1
             return
         endif
-        call Gstatus()
+        call Gstatus(s:AGAIN)
         call cursor(0, 0)
     else
         call Error('Script Error: invalid argument')
     endif
 endfunction
-
 
 function! StatusReset() abort
     let l:filename = FindStatusFile()
@@ -338,13 +324,12 @@ function! StatusReset() abort
             if l:output == -1
                 return
             endif
-            call Gstatus()
+            call Gstatus(s:AGAIN)
             call search(l:filename . '$')
             execute 'normal ^'
         endif
     endif
 endfunction
-
 
 function! NextDiff() abort
     " Find the next diff section in a diff scratch buffer.  If there's less
@@ -355,7 +340,6 @@ function! NextDiff() abort
         execute 'normal z.'
     endif
 endfunction
-
 
 function! CommitBufferAuBufWrite() abort
     " get all lines
@@ -406,28 +390,38 @@ function! CommitBufferAuBufUnload() abort
             call EchoHL('Committed', s:GREEN)
         endif
     else
-        call Error('Nothing committed')
-        echo ' '
+        call Error('No files committed')
     endif
 
     silent! execute bufnr(bufname('%')) . 'bdelete'
 endfunction
 
-
 " ---------------- Callable git functions from here ------------------
 
+function! Gstatus(...) abort
+    " Gstatus can be called again from a giddy status window when we add or reset files
+    if !a:0 && a:0 != s:AGAIN
+        " Check if we're already in a giddy buffer
+        if exists('b:giddy_buffer')
+            if b:giddy_buffer ==# s:GSTATUS_BUFFER
+                return
+            else
+                silent! bwipe!
+            endif
+        endif
+    endif
 
-function! Gstatus() abort
     call SetTopLevel()
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
         if len(l:lines) == 2 && l:lines[1] == s:NothingToCommit
-            silent! bwipe '_git_status'
-            echo s:NothingToCommit
+            silent! bwipe s:GSTATUS_BUFFER
+            call Error(s:NothingToCommit)
         else
             let l:size = CalcWinSize(l:lines, 5)
-            call CreateScratchBuffer('_git_status', l:size)
+            call CreateScratchBuffer(s:GSTATUS_BUFFER, l:size)
+            let b:giddy_buffer = s:GSTATUS_BUFFER
             call append(line('$'), l:lines)
             runtime syntax/git-status.vim
             setlocal cursorline
@@ -453,7 +447,6 @@ function! Gstatus() abort
     endif
 endfunction
 
-
 function! Gbranch() abort
     call SetTopLevel()
     let l:output = Git('branch')
@@ -464,10 +457,9 @@ function! Gbranch() abort
     endif
 endfunction
 
-
 function! Gbranches() abort
     call SetTopLevel()
-    let l:current = ExistingBranches()
+    let l:current = EchoExistingBranches()
     if l:current != -1
         let l:br = Strip(UserInput('Switch branch [' . l:current . ']'))
         if strlen(l:br)
@@ -480,10 +472,9 @@ function! Gbranches() abort
     endif
 endfunction
 
-
 function! GcreateBranch() abort
     call SetTopLevel()
-    let l:current = ExistingBranches()
+    let l:current = EchoExistingBranches()
     if l:current != -1
         let l:br = Strip(UserInput('Create branch'))
         if strlen(l:br)
@@ -501,10 +492,9 @@ function! GcreateBranch() abort
     endif
 endfunction
 
-
 function! GdeleteBranch() abort
     call SetTopLevel()
-    let current = ExistingBranches()
+    let current = EchoExistingBranches()
     if current != -1
         let br = Strip(UserInput('Delete branch'))
         if strlen(br)
@@ -517,14 +507,27 @@ function! GdeleteBranch() abort
     endif
 endfunction
 
-
 function! GwipeBranch() abort
     call SetTopLevel()
     call Error('Not implemented yet.')
 endfunction
 
-
 function! Gdiff(arg) abort
+    " Check if we're already in a giddy buffer
+    if exists('b:giddy_buffer')
+        if b:giddy_buffer ==# s:GDIFF_BUFFER
+            return
+        else
+            " We can't do a git diff on the current file (since the current file is the giddy
+            " scratch buffer). We can only do a git diff all.
+            if a:arg != s:ALL
+                call Error("Can't diff a giddy buffer. Did you mean :GlogAll?")
+                return
+            endif
+            silent! bwipe!
+        endif
+    endif
+
     call SetTopLevel()
     if a:arg == s:ALL
         let l:filename = ''
@@ -535,10 +538,11 @@ function! Gdiff(arg) abort
     let l:output = Git('diff ' . l:filename)
     if l:output != -1
         if l:output == ''
-            echo 'no changes'
+            call Error('No changes')
         else
             let l:lines = split(l:output, '\n')
-            call CreateScratchBuffer('_git_diff', CalcWinSize(l:lines, 5))
+            call CreateScratchBuffer(s:GDIFF_BUFFER, CalcWinSize(l:lines, 5))
+            let b:giddy_buffer = s:GDIFF_BUFFER
             call append(line('$'), l:lines)
             runtime syntax/git-diff.vim
             " delete without saving to a register
@@ -554,9 +558,17 @@ function! Gdiff(arg) abort
     endif
 endfunction
 
-
 " Use --porcelain?
 function! Gcommit(arg) abort
+    " Check if we're already in a giddy buffer
+    if exists('b:giddy_buffer')
+        if b:giddy_buffer ==# s:GCOMMIT_BUFFER
+            return
+        else
+            silent! bwipe!
+        endif
+    endif
+
     call SetTopLevel()
     if a:arg == s:NEW
         let l:tmpfile = tempname()
@@ -564,29 +576,44 @@ function! Gcommit(arg) abort
         let l:lines = split(l:commit_msg, '\n')
         let l:len = len(l:lines)
         if l:lines[l:len - 1] =~ s:NoChanges
-            echo 'No changes staged for commit'
+            call Error('No changes staged for commit')
             return Gstatus()
         endif
         let l:size = CalcWinSize(l:lines, 5)
         let l:top_level = b:top_level
         execute 'silent ' . l:size . 'split ' . l:top_level . '/.git/COMMIT_MSG'
+        setlocal modifiable
         let b:top_level = l:top_level
+        let b:giddy_buffer = s:GCOMMIT_BUFFER
 
         silent! execute 'normal ggdG'
         call append(line('$'), l:lines)
         " delete without saving to a register
         execute 'delete _'
-        "set filetype=gitcommit
+        runtime syntax/git-commit.vim
         au! BufWrite <buffer> call CommitBufferAuBufWrite()
         au! BufUnload  <buffer> call CommitBufferAuBufUnload()
-
     elseif a:arg == s:AMEND
         call Error('Not implemented yet.')
     endif
 endfunction
 
-
 function! Glog(arg) abort
+    " Check if we're already in a giddy scratch buffer
+    if exists('b:giddy_buffer')
+        if b:giddy_buffer ==# s:GLOG_BUFFER
+            return
+        else
+            " We can't do a git log on the current file (since the current file is the giddy
+            " scratch buffer). We can only do a git log all.
+            if a:arg != s:ALL
+                call Error("Can't log a giddy buffer. Did you mean :GlogAll?")
+                return
+            endif
+            silent! bwipe!
+        endif
+    endif
+
     call SetTopLevel()
     if a:arg == s:ALL
         let l:filename = ''
@@ -596,7 +623,8 @@ function! Glog(arg) abort
     let l:output = Git('log ' . l:filename)
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        call CreateScratchBuffer('_git_log', CalcWinSize(l:lines, 5))
+        call CreateScratchBuffer(s:GLOG_BUFFER, CalcWinSize(l:lines, 5))
+        let b:giddy_buffer = s:GLOG_BUFFER
         call append(line('$'), l:lines)
         runtime syntax/git-log.vim
         " delete without saving to a register
@@ -609,12 +637,10 @@ function! Glog(arg) abort
     endif
 endfunction
 
-
 function! Gpush() abort
     call SetTopLevel()
     call Error('Not implemented yet.')
 endfunction
-
 
 function! Greview() abort
     call SetTopLevel()
