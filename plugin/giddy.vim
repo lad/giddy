@@ -371,11 +371,11 @@ function! CommitBufferAuBufWrite() abort
 
     let l:num_lines = len(l:lines)
     if l:num_lines == 0
-        call Error('No commit messages present - commit aborted')
+        call Error('No commit messages present')
         echo ' '
         return -1
     elseif strlen(l:lines[0]) == 0
-        call Error('The first line must contain a commit message - commit aborted.')
+        call Error('The first line must contain a commit message')
         echo ' '
         return -1
     endif
