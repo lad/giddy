@@ -579,20 +579,18 @@ function! Gcommit(arg) abort
     endif
 
     call SetTopLevel()
-    if a:arg == s:NEW
-        let l:tmpfile = tempname()
-        let l:commit_msg = Git('commit --dry-run', s:IGNORE_EXIT_CODE)
-        let l:lines = split(l:commit_msg, '\n')
-        let l:len = len(l:lines)
-        if l:lines[l:len - 1] =~# s:NoChanges
-            call Error('No changes staged for commit')
-            return Gstatus()
-        elseif l:lines[l:len - 1] =~# s:NothingToCommit
-            call Error(s:NothingToCommit)
-            return
-        endif
-    elseif a:arg != s:AMEND
-        call Error('Script Error: invalid argument')
+    let l:tmpfile = tempname()
+    let l:commit_msg = Git('commit --dry-run', s:IGNORE_EXIT_CODE)
+    if l:commit_msg == -1
+        return
+    endif
+    let l:lines = split(l:commit_msg, '\n')
+    let l:len = len(l:lines)
+    if l:lines[l:len - 1] =~# s:NoChanges
+        call Error('No changes staged for commit')
+        return Gstatus()
+    elseif l:lines[l:len - 1] =~# s:NothingToCommit
+        call Error(s:NothingToCommit)
         return
     endif
 
@@ -603,12 +601,18 @@ function! Gcommit(arg) abort
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
 
-    if a:arg == s:NEW
-        silent! execute '1,' . line('$') . 'delete _'
-        call append(line('$'), l:lines)
-        " delete blank first line without saving to a register
-        silent! execute 'delete _'
+    if a:arg == s:AMEND
+        let l:amend_msg = Git('log -1 --pretty=%B')
+        if l:amend_msg == -1
+            return
+        endif
+        let l:lines = split(l:amend_msg, '\n') + l:lines
     endif
+
+    silent! execute '1,' . line('$') . 'delete _'
+    call append(line('$'), l:lines)
+    " delete blank first line without saving to a register
+    silent! execute 'delete _'
 
     runtime syntax/git-commit.vim
     au! BufWrite <buffer> call CommitBufferAuBufWrite()
