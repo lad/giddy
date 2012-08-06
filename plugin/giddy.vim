@@ -415,9 +415,10 @@ function! Gstatus(...) abort
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        if len(l:lines) == 2 && l:lines[1] == s:NothingToCommit
+        let l:num_lines = len(l:lines)
+        if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NothingToCommit
             silent! bwipe s:GSTATUS_BUFFER
-            call Error(s:NothingToCommit)
+            call Error('No changes')
         else
             let l:size = CalcWinSize(l:lines, 5)
             call CreateScratchBuffer(s:GSTATUS_BUFFER, l:size)
