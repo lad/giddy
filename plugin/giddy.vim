@@ -597,6 +597,7 @@ function! Gcommit(arg) abort
     let l:top_level = b:top_level
     silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
     setlocal modifiable
+    setlocal filetype=gitcommit
     let b:top_level = l:top_level
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
