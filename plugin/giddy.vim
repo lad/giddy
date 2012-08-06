@@ -661,6 +661,7 @@ endfunction
 
 function! Gpush() abort
     call SetTopLevel()
+    echo 'Pushing...'
     let l:output = Git('push')
     if l:output != -1
         echo l:output
