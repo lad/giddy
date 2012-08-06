@@ -212,15 +212,15 @@ function! CreateScratchBuffer(name, size)
     let l:winnr = bufwinnr('^' . a:name . '$')
     if l:winnr >= 0
         " Change to that buffer and clear its contents
-        execute l:winnr . 'wincmd w'
+        silent execute l:winnr . 'wincmd w'
         setlocal modifiable
-        silent! execute 'normal ggdG'
+        silent! execute '1,' . line('$') . 'delete _'
     else
         " Set the value of top_level of the repository so we can set it in the new buffer
         let l:top_level = b:top_level
 
         " Create the buffer of that name and set it up as a scratch buffer
-        execute 'silent ' . a:size . 'new ' . a:name
+        silent! execute a:size . 'new ' . a:name
         setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile
         setlocal modifiable
         let b:top_level = l:top_level
@@ -426,7 +426,7 @@ function! Gstatus(...) abort
             runtime syntax/git-status.vim
             setlocal cursorline
             " delete without saving to a register
-            execute 'delete _'
+            silent! execute 'delete _'
             setlocal nomodified
             setlocal nomodifiable
             " resize doesn't work so well, this expands but doesn't shrink a window height
@@ -546,7 +546,7 @@ function! Gdiff(arg) abort
             call append(line('$'), l:lines)
             runtime syntax/git-diff.vim
             " delete without saving to a register
-            execute 'delete _'
+            silent! execute 'delete _'
             setlocal nomodified
             setlocal nomodifiable
 
@@ -575,21 +575,24 @@ function! Gcommit(arg) abort
         let l:commit_msg = Git('commit --dry-run', s:IGNORE_EXIT_CODE)
         let l:lines = split(l:commit_msg, '\n')
         let l:len = len(l:lines)
-        if l:lines[l:len - 1] =~ s:NoChanges
+        if l:lines[l:len - 1] =~# s:NoChanges
             call Error('No changes staged for commit')
             return Gstatus()
+        elseif l:lines[l:len - 1] =~# s:NothingToCommit
+            call Error(s:NothingToCommit)
+            return
         endif
         let l:size = CalcWinSize(l:lines, 5)
         let l:top_level = b:top_level
-        execute 'silent ' . l:size . 'split ' . l:top_level . '/.git/COMMIT_MSG'
+        silent! execute l:size . 'split ' . l:top_level . '/.git/COMMIT_MSG'
         setlocal modifiable
         let b:top_level = l:top_level
         let b:giddy_buffer = s:GCOMMIT_BUFFER
 
-        silent! execute 'normal ggdG'
+        silent! execute '1,' . line('$') . 'delete _'
         call append(line('$'), l:lines)
         " delete without saving to a register
-        execute 'delete _'
+        silent! execute 'delete _'
         runtime syntax/git-commit.vim
         au! BufWrite <buffer> call CommitBufferAuBufWrite()
         au! BufUnload  <buffer> call CommitBufferAuBufUnload()
