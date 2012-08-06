@@ -88,6 +88,7 @@ nnoremap gl                 :GlogThis<CR>
 nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
 nnoremap gA                 :GcommitAmend<CR>
+nnoremap gP                 :Gpush<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
