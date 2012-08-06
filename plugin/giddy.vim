@@ -395,7 +395,7 @@ function! CommitBufferAuBufUnload() abort
         endif
 
         if l:output != -1
-            call EchoHL('Committed', s:GREEN)
+            call Echo('Committed')
         endif
     else
         call Error('No files committed')
@@ -414,7 +414,7 @@ function! Gstatus(...) abort
             if b:giddy_buffer ==# s:GSTATUS_BUFFER
                 return
             else
-                silent! bwipe!
+                silent! bwipe
             endif
         endif
     endif
@@ -533,7 +533,7 @@ function! Gdiff(arg) abort
                 call Error("Can't diff a giddy buffer. Did you mean :GlogAll?")
                 return
             endif
-            silent! bwipe!
+            silent! bwipe
         endif
     endif
 
@@ -562,7 +562,7 @@ function! Gdiff(arg) abort
             " Local mappings for the scratch buffer
             nnoremap <buffer> <silent> zj :call NextDiff()<CR>
             nnoremap <buffer> <silent> zk ?^@@<CR>
-            nnoremap <buffer> <silent> q :bwipe!<CR>
+            nnoremap <buffer> <silent> q :bwipe<CR>
         endif
     endif
 endfunction
@@ -574,7 +574,7 @@ function! Gcommit(arg) abort
         if b:giddy_buffer ==# s:GCOMMIT_BUFFER
             return
         else
-            silent! bwipe!
+            silent! bwipe
         endif
     endif
 
@@ -587,7 +587,7 @@ function! Gcommit(arg) abort
     let l:lines = split(l:commit_msg, '\n')
     let l:len = len(l:lines)
     if l:lines[l:len - 1] =~# s:NoChanges
-        call Error('No changes staged for commit')
+        call Error('No changes staged for commit, opening git status')
         return Gstatus()
     elseif l:lines[l:len - 1] =~# s:NothingToCommit
         call Error(s:NothingToCommit)
@@ -632,7 +632,7 @@ function! Glog(arg) abort
                 call Error("Can't log a giddy buffer. Did you mean :GlogAll?")
                 return
             endif
-            silent! bwipe!
+            silent! bwipe
         endif
     endif
 
@@ -655,7 +655,7 @@ function! Glog(arg) abort
         setlocal nomodifiable
 
         " Local mappings for the scratch buffer
-        nnoremap <buffer> q :bwipe!<CR>
+        nnoremap <buffer> q :bwipe<CR>
     endif
 endfunction
 
@@ -664,6 +664,7 @@ function! Gpush() abort
     let l:output = Git('push')
     if l:output != -1
         echo l:output
+        call Echo('Pushed')
     endif
 endfunction
 
