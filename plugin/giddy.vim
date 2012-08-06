@@ -24,7 +24,7 @@ endif
 if exists('g:GiddyScaleWindow')
     if g:GiddyScaleWindow > 1
         call Error('Invalid value for GiddyScaleWindow (' .
-                   \ printf('%.2f', GiddyScaleWindow) . 
+                   \ printf('%.2f', GiddyScaleWindow) .
                    \ '). Maximum allowable value is 1.')
         "call Error(printf('%s (%.2f)%s', 'Invalid value for GiddyScaleWindow',
         "           \ GiddyScaleWindow, '. Maximum allowable value is 1.'))
@@ -125,8 +125,6 @@ function! Git(args, ...) abort
     " Run git from the repo's top-level dir
     let l:output = system('cd ' . b:top_level . '; git ' . a:args)
     if v:shell_error
-        echo b:top_level
-        call input(':')
         if a:0 == 1 && a:1 == s:IGNORE_EXIT_CODE
             return l:output
         endif
@@ -211,7 +209,7 @@ function! UserInput(prompt) abort
 endfunction
 
 
-function! CalcStatusWinSize(lines, min_lines) abort
+function! CalcWinSize(lines, min_lines) abort
     let l:max_win_size = max([float2nr(&lines * g:GiddyScaleWindow), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
@@ -349,27 +347,70 @@ endfunction
 
 
 function! NextDiff() abort
+    " Find the next diff section in a diff scratch buffer.  If there's less
+    " than 5 lines viewable from the diff reposition it to the center of the
+    " window
     call search('^@@')
-    " If there's less than 5 lines viewable from the diff reposition it to the
-    " center of the window
     if winheight(winnr()) - winline() < 5
         execute 'normal z.'
     endif
 endfunction
 
 
-function! CommitBufferPreCmd() abort
-    " Delete all comment lines
-    silent! execute 'g/^#/d'
+function! CommitBufferAuBufWrite() abort
+    " get all lines
+    let l:num_lines = line('$')
+    let l:lines = getline(1, l:num_lines)
 
-    " Delete any blank lines at the end of the message
-    silent! execute 'normal G'
-    " b = search backwards, c = match current line if present
-    let l:line_num = search('^[^\s]', 'bc')
-    if l:line_num != -1 && l:line_num != line('$')
-        let l:line_num += 1
-        silent! execute l:line_num . ',$delete _'
+    " First remove comments
+    let l:i = l:num_lines - 1
+    while l:i >= 0
+        if strlen(l:lines[l:i]) > 0 && l:lines[l:i][0] == '#'
+            unlet l:lines[l:i]
+        endif
+        let l:i -= 1
+    endwhile
+
+    " Remove blank lines at the end
+    let l:num_lines = len(l:lines)
+    let l:i = l:num_lines - 1
+    while l:i >= 0
+        if strlen(l:lines[l:i]) == 0
+            unlet l:lines[l:i]
+        else
+            " break on the last non-blank line
+            break
+        endif
+        let l:i -= 1
+    endwhile
+
+    let l:num_lines = len(l:lines)
+    if l:num_lines == 0
+        call Error('No commit messages present - commit aborted')
+        echo ' '
+        return -1
+    elseif strlen(l:lines[0]) == 0
+        call Error('The first line must contain a commit message - commit aborted.')
+        echo ' '
+        return -1
     endif
+
+    let b:tmpfile = tempname()
+    call writefile(l:lines, b:tmpfile)
+endfunction
+
+function! CommitBufferAuBufUnload() abort
+    if exists('b:tmpfile')
+        let l:output = Git('commit --file=' . b:tmpfile)
+        if l:output != -1
+            call EchoHL('Committed', s:GREEN)
+        endif
+    else
+        call Error('Nothing committed')
+        echo ' '
+    endif
+
+    silent! execute bufnr(bufname('%')) . 'bdelete'
 endfunction
 
 
@@ -385,7 +426,7 @@ function! Gstatus() abort
             silent! bwipe '_git_status'
             echo s:NothingToCommit
         else
-            let l:size = CalcStatusWinSize(l:lines, 5)
+            let l:size = CalcWinSize(l:lines, 5)
             call CreateScratchBuffer('_git_status', l:size)
             call append(line('$'), l:lines)
             runtime syntax/git-status.vim
@@ -397,7 +438,7 @@ function! Gstatus() abort
             " resize doesn't work so well, this expands but doesn't shrink a window height
             let &winheight = l:size
 
-            " Local commands and their mappings for the status buffer
+            " Local commands and their mappings for the scratch buffer
             command! -buffer StatusAddFile      call StatusAdd(s:FILE)
             command! -buffer StatusAddAll       call StatusAdd(s:ALL)
             command! -buffer StatusReset        call StatusReset()
@@ -490,13 +531,14 @@ function! Gdiff(arg) abort
     else
         let l:filename = a:arg
     endif
+
     let l:output = Git('diff ' . l:filename)
     if l:output != -1
         if l:output == ''
             echo 'no changes'
         else
             let l:lines = split(l:output, '\n')
-            call CreateScratchBuffer('_git_diff', CalcStatusWinSize(l:lines, 5))
+            call CreateScratchBuffer('_git_diff', CalcWinSize(l:lines, 5))
             call append(line('$'), l:lines)
             runtime syntax/git-diff.vim
             " delete without saving to a register
@@ -504,15 +546,16 @@ function! Gdiff(arg) abort
             setlocal nomodified
             setlocal nomodifiable
 
-            " Local mappings for the status buffer
-            nnoremap <buffer> q :bwipe!<CR>
+            " Local mappings for the scratch buffer
             nnoremap <buffer> <silent> zj :call NextDiff()<CR>
             nnoremap <buffer> <silent> zk ?^@@<CR>
+            nnoremap <buffer> <silent> q :bwipe!<CR>
         endif
     endif
 endfunction
 
-" Use --porcelain
+
+" Use --porcelain?
 function! Gcommit(arg) abort
     call SetTopLevel()
     if a:arg == s:NEW
@@ -521,12 +564,22 @@ function! Gcommit(arg) abort
         let l:lines = split(l:commit_msg, '\n')
         let l:len = len(l:lines)
         if l:lines[l:len - 1] =~ s:NoChanges
-            call Error(s:NoChanges)
+            echo 'No changes staged for commit'
             return Gstatus()
         endif
-        execute 'silent ' . 'split ' . l:tmpfile
+        let l:size = CalcWinSize(l:lines, 5)
+        let l:top_level = b:top_level
+        execute 'silent ' . l:size . 'split ' . l:top_level . '/.git/COMMIT_MSG'
+        let b:top_level = l:top_level
+
+        silent! execute 'normal ggdG'
         call append(line('$'), l:lines)
-        set filetype=gitcommit
+        " delete without saving to a register
+        execute 'delete _'
+        "set filetype=gitcommit
+        au! BufWrite <buffer> call CommitBufferAuBufWrite()
+        au! BufUnload  <buffer> call CommitBufferAuBufUnload()
+
     elseif a:arg == s:AMEND
         call Error('Not implemented yet.')
     endif
@@ -543,7 +596,7 @@ function! Glog(arg) abort
     let l:output = Git('log ' . l:filename)
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        call CreateScratchBuffer('_git_log', CalcStatusWinSize(l:lines, 5))
+        call CreateScratchBuffer('_git_log', CalcWinSize(l:lines, 5))
         call append(line('$'), l:lines)
         runtime syntax/git-log.vim
         " delete without saving to a register
@@ -551,7 +604,7 @@ function! Glog(arg) abort
         setlocal nomodified
         setlocal nomodifiable
 
-        " Local mappings for the status buffer
+        " Local mappings for the scratch buffer
         nnoremap <buffer> q :bwipe!<CR>
     endif
 endfunction
