@@ -87,6 +87,7 @@ nnoremap gD                 :GdiffAll<CR>
 nnoremap gl                 :GlogThis<CR>
 nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
+nnoremap gA                 :GcommitAmend<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -385,7 +386,14 @@ endfunction
 
 function! CommitBufferAuBufUnload() abort
     if exists('b:tmpfile')
-        let l:output = Git('commit --file=' . b:tmpfile)
+        if b:giddy_commit_type == s:NEW
+            let l:output = Git('commit --file=' . b:tmpfile)
+        elseif b:giddy_commit_type == s:AMEND
+            let l:output = Git('commit --amend --file=' . b:tmpfile)
+        else
+            call Error('Script Error: invalid argument')
+        endif
+
         if l:output != -1
             call EchoHL('Committed', s:GREEN)
         endif
@@ -400,7 +408,7 @@ endfunction
 
 function! Gstatus(...) abort
     " Gstatus can be called again from a giddy status window when we add or reset files
-    if !a:0 && a:1 != s:AGAIN
+    if ! (a:0 > 0 && a:1 == s:AGAIN)
         " Check if we're already in a giddy buffer
         if exists('b:giddy_buffer')
             if b:giddy_buffer ==# s:GSTATUS_BUFFER
@@ -583,23 +591,28 @@ function! Gcommit(arg) abort
             call Error(s:NothingToCommit)
             return
         endif
-        let l:size = CalcWinSize(l:lines, 5)
-        let l:top_level = b:top_level
-        silent! execute l:size . 'split ' . l:top_level . '/.git/COMMIT_MSG'
-        setlocal modifiable
-        let b:top_level = l:top_level
-        let b:giddy_buffer = s:GCOMMIT_BUFFER
+    elseif a:arg != s:AMEND
+        call Error('Script Error: invalid argument')
+        return
+    endif
 
+    let l:top_level = b:top_level
+    silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
+    setlocal modifiable
+    let b:top_level = l:top_level
+    let b:giddy_buffer = s:GCOMMIT_BUFFER
+    let b:giddy_commit_type = a:arg
+
+    if a:arg == s:NEW
         silent! execute '1,' . line('$') . 'delete _'
         call append(line('$'), l:lines)
-        " delete without saving to a register
+        " delete blank first line without saving to a register
         silent! execute 'delete _'
-        runtime syntax/git-commit.vim
-        au! BufWrite <buffer> call CommitBufferAuBufWrite()
-        au! BufUnload  <buffer> call CommitBufferAuBufUnload()
-    elseif a:arg == s:AMEND
-        call Error('Not implemented yet.')
     endif
+
+    runtime syntax/git-commit.vim
+    au! BufWrite <buffer> call CommitBufferAuBufWrite()
+    au! BufUnload  <buffer> call CommitBufferAuBufUnload()
 endfunction
 
 function! Glog(arg) abort
@@ -643,7 +656,10 @@ endfunction
 
 function! Gpush() abort
     call SetTopLevel()
-    call Error('Not implemented yet.')
+    let l:output = Git('push')
+    if l:output != -1
+        echo l:output
+    endif
 endfunction
 
 function! Greview() abort
