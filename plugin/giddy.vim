@@ -400,7 +400,7 @@ endfunction
 
 function! Gstatus(...) abort
     " Gstatus can be called again from a giddy status window when we add or reset files
-    if !a:0 && a:0 != s:AGAIN
+    if !a:0 && a:1 != s:AGAIN
         " Check if we're already in a giddy buffer
         if exists('b:giddy_buffer')
             if b:giddy_buffer ==# s:GSTATUS_BUFFER
