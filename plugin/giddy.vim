@@ -54,6 +54,7 @@ let s:MatchUntracked = '#\t\zs\(.*\)'
 let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:MatchCheckout = 'use "git checkout -- <file>..."'
 let s:NoChanges = 'no changes added to commit'
+let s:EverythingUpToDate = 'Everything up-to-date'
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -665,7 +666,9 @@ function! Gpush() abort
     let l:output = Git('push')
     if l:output != -1
         echo l:output
-        call Echo('Pushed')
+        if l:output !~# s:EverythingUpToDate 
+            call Echo('Pushed')
+        endif
     endif
 endfunction
 
