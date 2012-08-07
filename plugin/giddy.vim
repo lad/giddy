@@ -679,9 +679,21 @@ function! Gpush() abort
     endif
 endfunction
 
+" Gerrit push for review
 function! Greview() abort
     call SetTopLevel()
-    call Error('Not implemented yet.')
+    echo 'Pushing for review...'
+    if exists(g:GiddyGerritBranch)
+        let l:review_branch = g:GiddyGerritBranch
+    else
+        let l:review_branch = 'develop'
+    endif
+
+    let l:output = Git('review ' . l:review_branch . ' ' . GetCurrentBranch())
+    if l:output != -1
+        redraw
+        echo l:output
+    endif
 endfunction
 
 function! Gpull() abort
