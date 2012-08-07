@@ -205,7 +205,7 @@ function! UserInput(prompt) abort
 endfunction
 
 function! CalcWinSize(lines, min_lines) abort
-    let l:max_win_size = max([float2nr(&lines * g:GiddyScaleWindow), a:min_lines])
+    let l:max_win_size = max([float2nr(winheight(0) * g:GiddyScaleWindow), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
 
