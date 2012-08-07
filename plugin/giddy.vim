@@ -47,7 +47,7 @@ let s:GREEN = 'green'
 
 let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
 let s:MatchReset = 'use "git reset HEAD <file>..."'
-let s:MatchModified = '#\tmodified:   \zs\(.*\)'
+let s:MatchModified = '#\t.*modified:   \zs\(.*\)'
 let s:MatchNew = '#\tnew file:   \zs\(.*\)'
 let s:MatchDeleted = '#\tdeleted:    \zs\(.*\)'
 let s:MatchUntracked = '#\t\zs\(.*\)'
