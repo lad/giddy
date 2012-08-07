@@ -55,6 +55,7 @@ let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:MatchCheckout = 'use "git checkout -- <file>..."'
 let s:NoChanges = 'no changes added to commit'
 let s:EverythingUpToDate = 'Everything up-to-date'
+let s:AlreadyUpToDate = 'Already up-to-date'
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -73,10 +74,11 @@ command! GdiffStaged        call GdiffStaged(expand('%:p'))
 command! GdiffStagedAll     call GdiffStaged(s:ALL)
 command! Gcommit            call Gcommit(s:NEW)
 command! GcommitAmend       call Gcommit(s:AMEND)
-command! Gpush              call Gpush()
-command! Greview            call Greview()
 command! GlogThis           call Glog(expand('%:p'))
 command! GlogAll            call Glog(s:ALL)
+command! Gpush              call Gpush()
+command! Greview            call Greview()
+command! Gpull              call Gpull()
 
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
@@ -90,6 +92,7 @@ nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
 nnoremap gA                 :GcommitAmend<CR>
 nnoremap gP                 :Gpush<CR>
+nnoremap gp                 :Gpull<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -665,9 +668,9 @@ function! Gpush() abort
     echo 'Pushing...'
     let l:output = Git('push')
     if l:output != -1
-        " clear status line
+        " clear status line (Pushing...)
         redraw
-        if split(l:output, '\n')[0] ==# s:EverythingUpToDate 
+        if split(l:output, '\n')[0] =~# s:EverythingUpToDate 
             call Echo(s:EverythingUpToDate)
         else
             echo l:output
@@ -679,4 +682,20 @@ endfunction
 function! Greview() abort
     call SetTopLevel()
     call Error('Not implemented yet.')
+endfunction
+
+function! Gpull() abort
+    call SetTopLevel()
+    echo 'Pulling...'
+    let l:output = Git('pull')
+    if l:output != -1
+        " clear status line (Pulling...)
+        redraw
+        if split(l:output, '\n')[0] =~# s:AlreadyUpToDate 
+            call Echo(s:AlreadyUpToDate)
+        else
+            echo l:output
+            call Echo('Pulled')
+        endif
+    endif
 endfunction
