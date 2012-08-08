@@ -42,6 +42,7 @@ let s:NEW=3
 let s:AMEND=4
 let s:IGNORE_EXIT_CODE=5
 let s:AGAIN=6
+let s:NoEcho=6
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -281,7 +282,7 @@ function! Checkout()
             endif
             redraw  "clear the status line
             call Echo('Checked out ' . l:filename)
-            return Gstatus()
+            return Gstatus(s:NoEcho)
         else
             redraw  "clear the status line
             call Error('Checkout cancelled')
@@ -444,8 +445,13 @@ function! Gstatus(...) abort
         let l:lines = split(l:output, '\n')
         let l:num_lines = len(l:lines)
         if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NothingToCommit
-            silent! bwipe s:GSTATUS_BUFFER
-            call Error('No changes')
+            let l:nr = bufnr(s:GSTATUS_BUFFER)
+            if l:nr != -1
+                execute l:nr . "bwipe"
+            endif
+            if ! (a:0 > 0 && a:1 == s:NoEcho)
+                call Error('No changes')
+            endif
         else
             let l:size = CalcWinSize(l:lines, 5)
             call CreateScratchBuffer(s:GSTATUS_BUFFER, l:size)
