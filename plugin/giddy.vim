@@ -670,7 +670,7 @@ function! Gpush() abort
     if l:output != -1
         " clear status line (Pushing...)
         redraw
-        if split(l:output, '\n')[0] =~# s:EverythingUpToDate 
+        if split(l:output, '\n')[0] =~# s:EverythingUpToDate
             call Echo(s:EverythingUpToDate)
         else
             echo l:output
@@ -703,7 +703,7 @@ function! Gpull() abort
     if l:output != -1
         " clear status line (Pulling...)
         redraw
-        if split(l:output, '\n')[0] =~# s:AlreadyUpToDate 
+        if split(l:output, '\n')[0] =~# s:AlreadyUpToDate
             call Echo(s:AlreadyUpToDate)
         else
             echo l:output
