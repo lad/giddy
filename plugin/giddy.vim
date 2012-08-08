@@ -114,10 +114,6 @@ function! Error(text, ...)
 endfunction
 
 function! Echo(text, ...)
-    if a:0 == 1 and a:1
-        redraw
-    endif
-
     echohl GoodHL
     call EchoLines(a:text)
     echohl None
