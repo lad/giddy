@@ -84,7 +84,7 @@ nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
 nnoremap gB                 :Gbranches<CR>
 nnoremap gc                 :GcreateBranch<CR>
-nnoremap gR                 :GdeleteBranch<CR>
+nnoremap gT                 :GdeleteBranch<CR>
 nnoremap gd                 :GdiffThis<CR>
 nnoremap gD                 :GdiffAll<CR>
 nnoremap gl                 :GlogThis<CR>
@@ -93,32 +93,50 @@ nnoremap gC                 :Gcommit<CR>
 nnoremap gA                 :GcommitAmend<CR>
 nnoremap gP                 :Gpush<CR>
 nnoremap gp                 :Gpull<CR>
+nnoremap gR                 :Greview<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
 highlight RedHL             ctermfg=red cterm=bold
 highlight GreenHL           ctermfg=green cterm=bold
 
-function! Error(text)
+function! EchoLines(lines)
+    for l:line in split(a:lines, '\n')
+        echo l:line
+    endfor
+endfunction
+
+function! Error(text, ...)
     redraw
-    echohl ErrorHL | echom a:text | echohl None
+    echohl ErrorHL
+    call EchoLines(a:text)
+    echohl None
 endfunction
 
-function! Echo(text)
-    echohl GoodHL | echo a:text | echohl None
+function! Echo(text, ...)
+    if a:0 == 1 and a:1
+        redraw
+    endif
+
+    echohl GoodHL
+    call EchoLines(a:text)
+    echohl None
 endfunction
 
-function! EchoDebug(args)
-    echo a:args
+function! EchoDebug(text)
+    call EchoLines(a:text)
     call input('>')
 endfunction
 
-function! EchoHL(args, hl)
+function! EchoHL(text, hl)
     if a:hl == 'red'
-        echohl RedHL | echo a:args  | echohl None
+        echohl RedHL
     elseif a:hl == 'green'
-        echohl GreenHL | echo a:args  | echohl None
+        echohl GreenHL
     endif
+
+    call EchoLines(a:text)
+    echohl None
 endfunction
 
 function! Strip(str)
@@ -500,7 +518,7 @@ function! GcreateBranch() abort
 
             let l:output = Git(cmd)
             if l:output != -1
-                echo l:output
+                call EchoLines(l:output)
             endif
         endif
     endif
@@ -515,7 +533,7 @@ function! GdeleteBranch() abort
             echo ' '
             let l:output = Git('branch -d ' . br)
             if l:output != -1
-                echo l:output
+                call EchoLines(l:output)
             endif
         endif
     endif
@@ -673,7 +691,7 @@ function! Gpush() abort
         if split(l:output, '\n')[0] =~# s:EverythingUpToDate
             call Echo(s:EverythingUpToDate)
         else
-            echo l:output
+            call EchoLines(l:output)
             call Echo('Pushed')
         endif
     endif
@@ -683,7 +701,7 @@ endfunction
 function! Greview() abort
     call SetTopLevel()
     echo 'Pushing for review...'
-    if exists(g:GiddyGerritBranch)
+    if exists('g:GiddyGerritBranch')
         let l:review_branch = g:GiddyGerritBranch
     else
         let l:review_branch = 'develop'
@@ -692,7 +710,7 @@ function! Greview() abort
     let l:output = Git('review ' . l:review_branch . ' ' . GetCurrentBranch())
     if l:output != -1
         redraw
-        echo l:output
+        call EchoLines(l:output)
     endif
 endfunction
 
@@ -706,7 +724,7 @@ function! Gpull() abort
         if split(l:output, '\n')[0] =~# s:AlreadyUpToDate
             call Echo(s:AlreadyUpToDate)
         else
-            echo l:output
+            call EchoLines(l:output)
             call Echo('Pulled')
         endif
     endif
