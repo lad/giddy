@@ -42,18 +42,21 @@ let s:NEW=3
 let s:AMEND=4
 let s:IGNORE_EXIT_CODE=5
 let s:AGAIN=6
-let s:NoEcho=6
+let s:NoEcho=7
+let s:TOGGLE=8
 let s:RED = 'red'
 let s:GREEN = 'green'
 
+let s:ModifiedFile = '#\t.*modified:   \zs\(.*\)'
+let s:NewFile = '#\tnew file:   \zs\(.*\)'
+let s:DeletedFile = '#\tdeleted:    \zs\(.*\)'
+let s:UntrackedFile = '#\t\zs\(.*\)'
+
 let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
 let s:MatchReset = 'use "git reset HEAD <file>..."'
-let s:MatchModified = '#\t.*modified:   \zs\(.*\)'
-let s:MatchNew = '#\tnew file:   \zs\(.*\)'
-let s:MatchDeleted = '#\tdeleted:    \zs\(.*\)'
-let s:MatchUntracked = '#\t\zs\(.*\)'
-let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:MatchCheckout = 'use "git checkout -- <file>..."'
+
+let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:NoChanges = 'no changes added to commit'
 let s:EverythingUpToDate = 'Everything up-to-date'
 let s:AlreadyUpToDate = 'Already up-to-date'
@@ -63,6 +66,7 @@ let s:GCOMMIT_BUFFER = '_git_commit'
 let s:GSTATUS_BUFFER = '_git_status'
 let s:GDIFF_BUFFER = '_git_diff'
 
+command! Git                call Git()
 command! Gstatus            call Gstatus()
 command! Gbranch            call Gbranch()
 command! Gbranches          call Gbranches()
@@ -250,12 +254,12 @@ endfunction
 
 function! FindStatusFile()
     let l:linenr = line('.')
-    let l:filename = matchstr(getline(l:linenr), s:MatchModified)
+    let l:filename = matchstr(getline(l:linenr), s:ModifiedFile)
     if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:MatchDeleted)
+        let l:filename = matchstr(getline(l:linenr), s:DeletedFile)
     endif
     if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:MatchUntracked)
+        let l:filename = matchstr(getline(l:linenr), s:UntrackedFile)
     endif
     return l:filename
 endfunction
@@ -470,15 +474,41 @@ function! Gstatus(...) abort
             command! -buffer StatusAddFile      call StatusAdd(s:FILE)
             command! -buffer StatusAddAll       call StatusAdd(s:ALL)
             command! -buffer StatusReset        call StatusReset()
+            command! -buffer StatusHelpToggle   call StatusHelp(s:TOGGLE)
 
+            nnoremap <buffer> <silent> <F1>     :StatusHelpToggle<CR>
             nnoremap <buffer> <silent> a        :StatusAddFile<CR>
             nnoremap <buffer> <silent> A        :StatusAddAll<CR>
             nnoremap <buffer> <silent> r        :StatusReset<CR>
             nnoremap <buffer> <silent> e        :call Edit()<CR>
             nnoremap <buffer> <silent> c        :call Checkout()<CR>
-            nnoremap <buffer> <silent> q        :bwipe<CR>
+            nnoremap <buffer> <silent> Q        :bwipe<CR>
+
+            call StatusHelp()
         endif
     endif
+endfunction
+
+let s:STATUS_HELP='# Keys: a (add), A (add all), r (reset), e (edit), c (checkout), Q (quit)'
+function! StatusHelp(...) abort
+    " Show the help if it's:
+    " - not currently shown and toggle was requested
+    " - currently shown and toggle wasn't requested
+    "
+    " Unshow the help if it's
+    " - currently shown and toggle was requested
+
+    set modifiable
+    let l:do_toggle = a:0 == 1 && a:1 == s:TOGGLE
+    if (!exists('b:has_help') && do_toggle) || (exists('b:has_help') && !do_toggle)
+        call append(line('^'), s:STATUS_HELP)
+        let b:has_help = 1
+    elseif (exists('b:has_help') && do_toggle)
+        execute 'silent 1delete'
+        execute "silent ''"
+        unlet b:has_help
+    endif
+    set nomodifiable
 endfunction
 
 function! Gbranch() abort
@@ -587,7 +617,7 @@ function! Gdiff(arg) abort
             " Local mappings for the scratch buffer
             nnoremap <buffer> <silent> zj :call NextDiff()<CR>
             nnoremap <buffer> <silent> zk ?^@@<CR>
-            nnoremap <buffer> <silent> q :bwipe<CR>
+            nnoremap <buffer> <silent> Q :bwipe<CR>
         endif
     endif
 endfunction
