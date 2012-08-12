@@ -66,6 +66,12 @@ let s:GCOMMIT_BUFFER = '_git_commit'
 let s:GSTATUS_BUFFER = '_git_status'
 let s:GDIFF_BUFFER = '_git_diff'
 
+let s:STATUS_HELP=['# Keys: <F1> (toggle help), a (add), A (add all), r (reset), e (edit)',
+                 \ '#       c (checkout), Q (quit)']
+
+let s:DIFF_HELP=['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
+               \ '#       zf (first diff, next file) zF (first diff, previous file)']
+
 command! Git                call Git()
 command! Gstatus            call Gstatus()
 command! Gbranch            call Gbranch()
@@ -253,6 +259,9 @@ function! CreateScratchBuffer(name, size)
 endfunction
 
 function! FindStatusFile()
+    " TODO: Modify FindStatusFile so that we don't pickup Untracked as allowing checkout
+    " Check for '^# \a'
+
     let l:linenr = line('.')
     let l:filename = matchstr(getline(l:linenr), s:ModifiedFile)
     if strlen(l:filename) == 0
@@ -271,6 +280,10 @@ function! Edit()
 endfunction
 
 function! Checkout()
+
+    " TODO: Modify FindStatusFile so that we don't pickup Untracked as allowing checkout
+    " Check for '^# \a'
+
     " Get the filename on the current line
     let l:filename = FindStatusFile()
     " Check we have a filename and that "use git checkout" appears on a line
@@ -366,6 +379,32 @@ function! NextDiff() abort
     endif
 endfunction
 
+function! NextFileDiff() abort
+    " Find the first diff section for the next file in a diff scratch buffer.
+    " If there's less than 5 lines viewable from the diff reposition it to the
+    " center of the window
+    if search('^diff --git', 'c') != 0
+        call search('^@@')
+        if winheight(winnr()) - winline() < 5
+            execute 'normal z.'
+        endif
+    endif
+endfunction
+
+function! PrevFileDiff() abort
+    " Find the first diff section for the previous file in a diff scratch buffer.
+    let l:line = search('^diff --git', 'bn')
+    if l:line != 0
+        " TODO ...
+        call cursor(l:line, 0)
+        if search('^diff --git', 'b') != 0
+            call search('^@@')
+        else
+            execute "silent ''"
+        endif
+    endif
+endfunction
+
 function! CommitBufferAuBufWrite() abort
     " get all lines
     let l:num_lines = line('$')
@@ -428,6 +467,30 @@ function! CommitBufferAuBufUnload() abort
     silent! execute bufnr(bufname('%')) . 'bdelete'
 endfunction
 
+function! ShowHelp(...) abort
+    " args are help-text-list and optional s:TOGGLE
+    let l:text = a:1
+    let l:do_toggle = a:0 == 2 && a:2 == s:TOGGLE
+
+    set modifiable
+    if (!exists('b:has_help') && do_toggle) || (exists('b:has_help') && !do_toggle)
+        for n in range(0, len(l:text) - 1)
+            call append(n, l:text[n])
+        endfor
+        execute 'silent normal gg'
+        let b:has_help = 1
+    elseif (exists('b:has_help') && do_toggle)
+        let l:max = len(l:text)
+        execute 'silent 1,' . l:max . 'delete'
+        " Check if there's a previous position and move there
+        if line("''") != 0
+            execute "silent ''"
+        endif
+        unlet b:has_help
+    endif
+    set nomodifiable
+endfunction
+
 " ---------------- Callable git functions from here ------------------
 
 function! Gstatus(...) abort
@@ -474,41 +537,19 @@ function! Gstatus(...) abort
             command! -buffer StatusAddFile      call StatusAdd(s:FILE)
             command! -buffer StatusAddAll       call StatusAdd(s:ALL)
             command! -buffer StatusReset        call StatusReset()
-            command! -buffer StatusHelpToggle   call StatusHelp(s:TOGGLE)
+            command! -buffer ToggleHelp         call ShowHelp(s:STATUS_HELP, s:TOGGLE)
 
-            nnoremap <buffer> <silent> <F1>     :StatusHelpToggle<CR>
+            nnoremap <buffer> <silent> <F1>     :ToggleHelp<CR>
             nnoremap <buffer> <silent> a        :StatusAddFile<CR>
             nnoremap <buffer> <silent> A        :StatusAddAll<CR>
             nnoremap <buffer> <silent> r        :StatusReset<CR>
             nnoremap <buffer> <silent> e        :call Edit()<CR>
             nnoremap <buffer> <silent> c        :call Checkout()<CR>
-            nnoremap <buffer> <silent> Q        :bwipe<CR>
+            nnoremap <buffer> <silent> q        :bwipe<CR>
 
-            call StatusHelp()
+            call ShowHelp(s:STATUS_HELP)
         endif
     endif
-endfunction
-
-let s:STATUS_HELP='# Keys: a (add), A (add all), r (reset), e (edit), c (checkout), Q (quit)'
-function! StatusHelp(...) abort
-    " Show the help if it's:
-    " - not currently shown and toggle was requested
-    " - currently shown and toggle wasn't requested
-    "
-    " Unshow the help if it's
-    " - currently shown and toggle was requested
-
-    set modifiable
-    let l:do_toggle = a:0 == 1 && a:1 == s:TOGGLE
-    if (!exists('b:has_help') && do_toggle) || (exists('b:has_help') && !do_toggle)
-        call append(line('^'), s:STATUS_HELP)
-        let b:has_help = 1
-    elseif (exists('b:has_help') && do_toggle)
-        execute 'silent 1delete'
-        execute "silent ''"
-        unlet b:has_help
-    endif
-    set nomodifiable
 endfunction
 
 function! Gbranch() abort
@@ -585,7 +626,7 @@ function! Gdiff(arg) abort
             " We can't do a git diff on the current file (since the current file is the giddy
             " scratch buffer). We can only do a git diff all.
             if a:arg != s:ALL
-                call Error("Can't diff a giddy buffer. Did you mean :GlogAll?")
+                call Error("Can't diff a giddy buffer. Did you mean :GdiffAll?")
                 return
             endif
             silent! bwipe
@@ -615,9 +656,13 @@ function! Gdiff(arg) abort
             setlocal nomodifiable
 
             " Local mappings for the scratch buffer
-            nnoremap <buffer> <silent> zj :call NextDiff()<CR>
-            nnoremap <buffer> <silent> zk ?^@@<CR>
-            nnoremap <buffer> <silent> Q :bwipe<CR>
+            command! -buffer ToggleHelp     call ShowHelp(s:DIFF_HELP, s:TOGGLE)
+            nnoremap <buffer> <silent> <F1> :ToggleHelp<CR>
+            nnoremap <buffer> <silent> zj   :call NextDiff()<CR>
+            nnoremap <buffer> <silent> zk   ?^@@<CR>
+            nnoremap <buffer> <silent> zf   :call NextFileDiff()<CR>
+            nnoremap <buffer> <silent> zF   :call PrevFileDiff()<CR>
+            nnoremap <buffer> <silent> q    :bwipe<CR>
         endif
     endif
 endfunction
@@ -670,7 +715,7 @@ function! Gcommit(arg) abort
     " delete blank first line without saving to a register
     silent! execute 'delete _'
 
-    au! BufWrite <buffer> call CommitBufferAuBufWrite()
+    au! BufWrite   <buffer> call CommitBufferAuBufWrite()
     au! BufUnload  <buffer> call CommitBufferAuBufUnload()
 endfunction
 
