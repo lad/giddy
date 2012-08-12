@@ -42,8 +42,9 @@ let s:NEW=3
 let s:AMEND=4
 let s:IGNORE_EXIT_CODE=5
 let s:AGAIN=6
-let s:NoEcho=7
+let s:NOECHO=7
 let s:TOGGLE=8
+let s:STAGED=9
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -81,8 +82,8 @@ command! GdeleteBranch      call GdeleteBranch()
 command! GwipeBranch        call GwipeBranch()
 command! GdiffThis          call Gdiff(expand('%:p'))
 command! GdiffAll           call Gdiff(s:ALL)
-command! GdiffStaged        call GdiffStaged(expand('%:p'))
-command! GdiffStagedAll     call GdiffStaged(s:ALL)
+command! GdiffStaged        call Gdiff(expand('%:p'), s:STAGED)
+command! GdiffStagedAll     call Gdiff(s:ALL, s:STAGED)
 command! Gcommit            call Gcommit(s:NEW)
 command! GcommitAmend       call Gcommit(s:AMEND)
 command! GlogThis           call Glog(expand('%:p'))
@@ -98,6 +99,8 @@ nnoremap gc                 :GcreateBranch<CR>
 nnoremap gT                 :GdeleteBranch<CR>
 nnoremap gd                 :GdiffThis<CR>
 nnoremap gD                 :GdiffAll<CR>
+nnoremap gj                 :GdiffStaged<CR>
+nnoremap gJ                 :GdiffStagedAll<CR>
 nnoremap gl                 :GlogThis<CR>
 nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
@@ -299,7 +302,7 @@ function! Checkout()
             endif
             redraw  "clear the status line
             call Echo('Checked out ' . l:filename)
-            return Gstatus(s:NoEcho)
+            return Gstatus(s:NOECHO)
         else
             redraw  "clear the status line
             call Error('Checkout cancelled')
@@ -516,7 +519,7 @@ function! Gstatus(...) abort
             if l:nr != -1
                 execute l:nr . "bwipe"
             endif
-            if ! (a:0 > 0 && a:1 == s:NoEcho)
+            if ! (a:0 > 0 && a:1 == s:NOECHO)
                 call Error('No changes')
             endif
         else
@@ -617,7 +620,7 @@ function! GwipeBranch() abort
     call Error('Not implemented yet.')
 endfunction
 
-function! Gdiff(arg) abort
+function! Gdiff(arg, ...) abort
     " Check if we're already in a giddy buffer
     if exists('b:giddy_buffer')
         if b:giddy_buffer ==# s:GDIFF_BUFFER
@@ -634,13 +637,22 @@ function! Gdiff(arg) abort
     endif
 
     call SetTopLevel()
+
+    " First arg (required) is S:ALL or a filename
     if a:arg == s:ALL
         let l:filename = ''
     else
         let l:filename = a:arg
     endif
 
-    let l:output = Git('diff ' . l:filename)
+    " Second arg is optional
+    if a:0 == 1 && a:1 == s:STAGED
+        let l:staged = '--staged '
+    else
+        let l:staged = ''
+    endif
+
+    let l:output = Git('diff ' . l:staged . l:filename)
     if l:output != -1
         if l:output == ''
             call Error('No changes')
