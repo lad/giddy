@@ -19,7 +19,7 @@
 if exists('g:giddy_loaded')
     finish
 endif
-"let g:giddy_loaded=1
+let g:giddy_loaded=1
 
 if exists('g:GiddyScaleWindow')
     if g:GiddyScaleWindow > 1
@@ -31,6 +31,7 @@ else
     let g:GiddyScaleWindow=0.5
 endif
 
+" This is used so we can use runtime to load the files in the syntax directory
 if !exists('g:added_runtimepath')
     let &runtimepath = expand(&runtimepath) . ',.'
     let g:added_runtimepath = 1
@@ -153,25 +154,7 @@ function! Strip(str)
     return substitute(a:str, '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
-function! Git(args, ...) abort
-    " Run git from the repo's top-level dir
-    let l:output = system('cd ' . b:top_level . '; git ' . a:args)
-    if v:shell_error
-        if a:0 == 1 && a:1 == s:IGNORE_EXIT_CODE
-            return l:output
-        endif
-
-        if strlen(l:output)
-            call Error(l:output)
-        else
-            call Error('Error running git command')
-        endif
-        return -1
-    endif
-
-    return l:output
-endfunction
-
+" Set b:top_level to the path of the repository containing the current file
 function! SetTopLevel() abort
     if !exists('b:top_level')
         let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
@@ -184,6 +167,7 @@ function! SetTopLevel() abort
     return 0
 endfunction
 
+" Return the name of the current branch
 function! GetCurrentBranch() abort
     let l:output = Git('branch -a')
     if l:output != -1
@@ -203,6 +187,7 @@ function! GetCurrentBranch() abort
     endif
 endfunction
 
+" Echos all branches in the current repository
 function! EchoExistingBranches() abort
     let l:output = Git('branch -a')
     if l:output != -1
@@ -229,6 +214,7 @@ function! EchoExistingBranches() abort
     endif
 endfunction
 
+" Read and return input
 function! UserInput(prompt) abort
     call inputsave()
     let l:in = input(a:prompt . ": ")
@@ -236,11 +222,13 @@ function! UserInput(prompt) abort
     return l:in
 endfunction
 
+" Calculate the size of scratch windows (uses g:GiddyScaleWindow option)
 function! CalcWinSize(lines, min_lines) abort
     let l:max_win_size = max([float2nr(winheight(0) * g:GiddyScaleWindow), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
 
+" Create the buffer used to display output from various git commands (diff, status, log, etc)
 function! CreateScratchBuffer(name, size)
     " Get the buffer number using the given name to check if already exists
     let l:winnr = bufwinnr('^' . a:name . '$')
@@ -495,6 +483,25 @@ function! ShowHelp(...) abort
 endfunction
 
 " ---------------- Callable git functions from here ------------------
+
+function! Git(args, ...) abort
+    " Run git from the repo's top-level dir
+    let l:output = system('cd ' . b:top_level . '; git ' . a:args)
+    if v:shell_error
+        if a:0 == 1 && a:1 == s:IGNORE_EXIT_CODE
+            return l:output
+        endif
+
+        if strlen(l:output)
+            call Error(l:output)
+        else
+            call Error('Error running git command')
+        endif
+        return -1
+    endif
+
+    return l:output
+endfunction
 
 function! Gstatus(...) abort
     " Gstatus can be called again from a giddy status window when we add or reset files
