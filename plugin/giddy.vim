@@ -92,6 +92,8 @@ command! GlogAll            call Glog(s:ALL)
 command! Gpush              call Gpush()
 command! Greview            call Greview()
 command! Gpull              call Gpull()
+command! Gstash             call Gstash()
+command! GstashPop          call GstashPop()
 
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
@@ -109,6 +111,8 @@ nnoremap gA                 :GcommitAmend<CR>
 nnoremap gP                 :Gpush<CR>
 nnoremap gp                 :Gpull<CR>
 nnoremap gR                 :Greview<CR>
+nnoremap gk                 :Gstash<CR>
+nnoremap gK                 :GstashPop<CR>
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -824,4 +828,24 @@ function! Gpull() abort
             call Echo('Pulled')
         endif
     endif
+endfunction
+
+function! Gstash() abort
+    call SetTopLevel()
+    let l:output = Git('stash')
+    if l:output != -1
+        call EchoLines(l:output)
+    endif
+    execute ':e'
+    call Echo('File(s) stashed, ' . expand('%:t') . ' reloaded')
+endfunction
+
+function! GstashPop() abort
+    call SetTopLevel()
+    let l:output = Git('stash pop')
+    if l:output != -1
+        call EchoLines(l:output)
+    endif
+    execute ':e'
+    call Echo('File(s) popped, ' . expand('%:t') . ' reloaded')
 endfunction
