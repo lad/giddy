@@ -16,10 +16,10 @@
 "                           - By default the value is 0.5.
 
 
-if exists('g:giddy_loaded')
-    finish
-endif
-let g:giddy_loaded=1
+"if exists('g:giddy_loaded')
+"    finish
+"endif
+"let g:giddy_loaded=1
 
 if exists('g:GiddyScaleWindow')
     if g:GiddyScaleWindow > 1
@@ -41,7 +41,7 @@ let s:ALL=1
 let s:FILE=2
 let s:NEW=3
 let s:AMEND=4
-let s:IGNORE_EXIT_CODE=5
+let s:IGNORE_ERROR=5
 let s:AGAIN=6
 let s:NOECHO=7
 let s:TOGGLE=8
@@ -162,11 +162,14 @@ endfunction
 function! SetTopLevel() abort
     if !exists('b:top_level')
         let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
-        let b:top_level = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
+        let l:output = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
         if v:shell_error
             return -1
         endif
-        let b:top_level = substitute(b:top_level, '\n', "", "")
+        if l:output =~? '^fatal'
+            return -1
+        endif
+        let b:top_level = substitute(l:output, '\n', "", "")
     endif
     return 0
 endfunction
@@ -294,6 +297,7 @@ function! Checkout()
             endif
             redraw  "clear the status line
             call Echo('Checked out ' . l:filename)
+            call ReloadRepoWindows()
             return Gstatus(s:NOECHO)
         else
             redraw  "clear the status line
@@ -492,7 +496,7 @@ function! Git(args, ...) abort
     " Run git from the repo's top-level dir
     let l:output = system('cd ' . b:top_level . '; git ' . a:args)
     if v:shell_error
-        if a:0 == 1 && a:1 == s:IGNORE_EXIT_CODE
+        if a:0 == 1 && a:1 == s:IGNORE_ERROR
             return l:output
         endif
 
@@ -703,7 +707,7 @@ function! Gcommit(arg) abort
 
     call SetTopLevel()
     let l:tmpfile = tempname()
-    let l:commit_msg = Git('commit --dry-run', s:IGNORE_EXIT_CODE)
+    let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
     if l:commit_msg == -1
         return
     endif
@@ -835,9 +839,9 @@ function! Gstash() abort
     let l:output = Git('stash')
     if l:output != -1
         call EchoLines(l:output)
+        call Echo('File(s) stashed')
+        call ReloadRepoWindows()
     endif
-    execute ':e'
-    call Echo('File(s) stashed, ' . expand('%:t') . ' reloaded')
 endfunction
 
 function! GstashPop() abort
@@ -845,7 +849,44 @@ function! GstashPop() abort
     let l:output = Git('stash pop')
     if l:output != -1
         call EchoLines(l:output)
+        call Echo('File(s) popped')
+        call ReloadRepoWindows()
     endif
-    execute ':e'
-    call Echo('File(s) popped, ' . expand('%:t') . ' reloaded')
+endfunction
+
+function! ReloadRepoWindows() abort
+    "Save the current window number so we end up back where we started
+    let l:winnr = winnr()
+
+    " Reload all windows which files in the current repository
+    let l:top_level = b:top_level
+    windo call ReloadWindows(l:top_level)
+
+    " Move back to the window we started in
+    execute l:winnr . 'wincmd w'
+endfunction
+
+function! ReloadWindows(top_level) abort
+    " This is run on each open window. If b:top_level matches the value
+    " passed in then this window contains a file in the current repository,
+    " so reload it (checking for any unsaved modifications)
+    if SetTopLevel() == 0 && a:top_level == b:top_level
+        windo call ReloadCurrentBuffer()
+    endif
+endfunction
+
+function! ReloadCurrentBuffer() abort
+    let l:reload = 'n'
+    if &modified == 1
+        let l:reload = UserInput(expand('%') . ' is modified. Reload [y/n]')
+        if l:reload !=? 'y'
+            return
+        endif
+    endif
+
+    execute 'silent edit! +' . line('.')
+
+    if l:reload ==? 'y'
+        call Echo(expand('%') . ' reloaded')
+    endif
 endfunction
