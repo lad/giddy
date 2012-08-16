@@ -63,6 +63,8 @@ let s:NoChanges = 'no changes added to commit'
 let s:EverythingUpToDate = 'Everything up-to-date'
 let s:AlreadyUpToDate = 'Already up-to-date'
 
+let s:NoLocalChangesToSave = 'No local changes to save'
+
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
 let s:GSTATUS_BUFFER = '_git_status'
@@ -838,9 +840,13 @@ function! Gstash() abort
     call SetTopLevel()
     let l:output = Git('stash')
     if l:output != -1
-        call EchoLines(l:output)
-        call Echo('File(s) stashed')
-        call ReloadRepoWindows()
+        if split(l:output, '\n')[0] == s:NoLocalChangesToSave
+            call Error(l:output)
+        else
+            call EchoLines(l:output)
+            call Echo('File(s) stashed')
+            call ReloadRepoWindows()
+        endif
     endif
 endfunction
 
