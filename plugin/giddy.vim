@@ -871,7 +871,7 @@ function! ReloadWindows(top_level) abort
     " passed in then this window contains a file in the current repository,
     " so reload it (checking for any unsaved modifications)
     if SetTopLevel() == 0 && a:top_level == b:top_level
-        windo call ReloadCurrentBuffer()
+        call ReloadCurrentBuffer()
     endif
 endfunction
 
