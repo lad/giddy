@@ -463,7 +463,7 @@ function! ShowHelp(...) abort
     let l:text = a:1
     let l:do_toggle = a:0 == 2 && a:2 == s:TOGGLE
 
-    set modifiable
+    setlocal modifiable
     if (!exists('b:has_help') && do_toggle) || (exists('b:has_help') && !do_toggle)
         for n in range(0, len(l:text) - 1)
             call append(n, l:text[n])
@@ -479,7 +479,7 @@ function! ShowHelp(...) abort
         endif
         unlet b:has_help
     endif
-    set nomodifiable
+    setlocal nomodifiable
 endfunction
 
 " ---------------- Callable git functions from here ------------------
