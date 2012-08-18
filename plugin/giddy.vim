@@ -12,7 +12,6 @@
 "                             size of the git split window.
 "                           - The default the value is 0.5 (max: 1)
 
-
 if exists('g:giddy_loaded') && !exists('g:giddy_dev')
     finish
 endif
@@ -98,6 +97,9 @@ highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
 highlight RedHL             ctermfg=red cterm=bold
 highlight GreenHL           ctermfg=green cterm=bold
 
+
+" ---------------- Private functions first ----------------------
+
 function! s:EchoLines(lines)
     for l:line in split(a:lines, '\n')
         echo l:line
@@ -133,10 +135,6 @@ function! s:EchoHL(text, hl)
     echohl None
 endfunction
 
-function! s:Strip(str)
-    return substitute(a:str, '^\s*\(.\{-}\)\s*$', '\1', '')
-endfunction
-
 " Set b:top_level to the path of the repository containing the current file
 function! s:SetTopLevel() abort
     if !exists('b:top_level')
@@ -151,6 +149,10 @@ function! s:SetTopLevel() abort
         let b:top_level = substitute(l:output, '\n', "", "")
     endif
     return 0
+endfunction
+
+function s:EnterBranchName(prompt)
+    return substitute(s:UserInput(prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
 " Return the name of the current branch
@@ -421,8 +423,7 @@ function! s:CommitBufferAuBufWrite() abort
         return -1
     endif
 
-    let b:tmpfile = tempname()
-    call writefile(l:lines, b:tmpfile)
+    call writefile(l:lines, tempname())
 endfunction
 
 function! s:CommitBufferAuBufUnload() abort
@@ -469,7 +470,9 @@ function! s:ShowHelp(...) abort
     setlocal nomodifiable
 endfunction
 
+
 " ---------------- Callable git functions from here ------------------
+
 
 function! Git(args, ...) abort
     " Run git from the repo's top-level dir
@@ -565,7 +568,7 @@ function! Gbranches() abort
     call s:SetTopLevel()
     let l:current = s:EchoExistingBranches()
     if l:current != -1
-        let l:br = s:Strip(s:UserInput('Switch branch [' . l:current . ']'))
+        let l:br = s:EnterBranchName('Switch branch [' . l:current . ']')
         if strlen(l:br)
             echo ' '
             let l:output = Git('checkout ' . l:br)
@@ -580,7 +583,7 @@ function! GcreateBranch() abort
     call s:SetTopLevel()
     let l:current = s:EchoExistingBranches()
     if l:current != -1
-        let l:br = s:Strip(s:UserInput('Create branch'))
+        let l:br = s:EnterBranchName('Create branch')
         if strlen(l:br)
             echo ' '
             let cmd = 'checkout -b ' . l:br
@@ -600,7 +603,7 @@ function! GdeleteBranch() abort
     call s:SetTopLevel()
     let current = s:EchoExistingBranches()
     if current != -1
-        let br = s:Strip(s:UserInput('Delete branch'))
+        let br = s:EnterBranchName('Delete branch')
         if strlen(br)
             echo ' '
             let l:output = Git('branch -d ' . br)
@@ -882,6 +885,7 @@ endfunction
 
 " -------------- SHORTCUTS ------------------
 
+
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
 nnoremap gB                 :Gbranches<CR>
@@ -900,4 +904,3 @@ nnoremap gP                 :Gpush<CR>
 nnoremap gR                 :Greview<CR>
 nnoremap gk                 :Gstash<CR>
 nnoremap gK                 :GstashPop<CR>
-
