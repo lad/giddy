@@ -16,10 +16,10 @@
 "                           - By default the value is 0.5.
 
 
-"if exists('g:giddy_loaded')
-"    finish
-"endif
-"let g:giddy_loaded=1
+if exists('g:giddy_loaded') && !exists('g:giddy_dev')
+    finish
+endif
+let g:giddy_loaded=1
 
 if exists('g:GiddyScaleWindow')
     if g:GiddyScaleWindow > 1
