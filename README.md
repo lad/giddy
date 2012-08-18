@@ -19,21 +19,21 @@ The following vim commands and shortcuts are defined.
 
     Command                 Shortcut
 
-    `Gstatus`                gs
-    `Gbranch`                gb
-    `Gbranches`              gB
-    `GcreateBranch`          gc
-    `GdeleteBranch`          gT
-    `GdiffThis`              gd
-    `GdiffAll`               gD
-    `GdiffStaged`            gj
-    `GdiffStagedAll`         gJ
-    `Gcommit`                gC
-    `GcommitAmend`           gA
-    `GlogThis`               gl
-    `GlogAll`                gL
-    `Gpull`                  gp
-    `Gpush`                  gP
-    `Greview`                gR
-    `Gstash`                 gk
-    `GstashPop`              gK
+    Gstatus                 gs
+    Gbranch                 gb
+    Gbranches               gB
+    GcreateBranch           gc
+    GdeleteBranch           gT
+    GdiffThis               gd
+    GdiffAll                gD
+    GdiffStaged             gj
+    GdiffStagedAll          gJ
+    Gcommit                 gC
+    GcommitAmend            gA
+    GlogThis                gl
+    GlogAll                 gL
+    Gpull                   gp
+    Gpush                   gP
+    Greview                 gR
+    Gstash                  gk
+    GstashPop               gK
