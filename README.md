@@ -44,3 +44,5 @@ Shortcuts
     gR              Greview                 
     gk              Gstash                  
     gK              GstashPop               
+
+The shortcuts aren't prefixed with <leader>. If you want to change this, they are listed at the bottom of the plugin source. Simply add <leader> to the shortcut if you prefer.
