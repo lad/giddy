@@ -46,3 +46,12 @@ Shortcuts
     gK              GstashPop               
 
 The shortcuts aren't prefixed with \<leader\>. If you want to change this, they are listed at the bottom of the plugin source. Simply add \<leader\> to the shortcut if you prefer.
+
+Options
+-------
+
+`GiddyTrackingBranch` If set this will be used when creating branches as the name of the remote tracking branch. For example
+
+    :let GiddyTrackingBranch="origin/master"
+
+`GiddyScaleWindow` If set this value will be multiplied by the number of lines in the current window to calculate the size of the git split window. The maximum value is 1 which cause Giddy now to split the window but use the entire current window. By default the value is 0.5.
