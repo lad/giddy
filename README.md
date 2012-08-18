@@ -54,4 +54,4 @@ Options
 
     :let GiddyTrackingBranch="origin/master"
 
-`GiddyScaleWindow` If set this value will be multiplied by the number of lines in the current window to calculate the size of the git split window. The maximum value is 1 which cause Giddy now to split the window but use the entire current window. By default the value is 0.5.
+`GiddyScaleWindow` If set this value will be multiplied by the number of lines in the current window to calculate the size of the git split window. The default value is 0.5 (max: 1).
