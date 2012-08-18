@@ -854,7 +854,7 @@ function! ReloadRepoWindows() abort
     "Save the current window number so we end up back where we started
     let l:winnr = winnr()
 
-    " Reload all windows which files in the current repository
+    " Reload all windows which have files in the current repository
     let l:top_level = b:top_level
     windo call ReloadWindows(l:top_level)
 
@@ -872,6 +872,7 @@ function! ReloadWindows(top_level) abort
 endfunction
 
 function! ReloadCurrentBuffer() abort
+    " Reload if unmodified otherwise get confirmation first
     let l:reload = 'n'
     if &modified == 1
         let l:reload = s:UserInput(expand('%') . ' is modified. Reload [y/n]')
