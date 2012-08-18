@@ -7,13 +7,10 @@
 " Options:
 "   GiddyTrackingBranch     - If set this will be used when creating branches
 "                             as the name of the remote tracking branch.
-"   GiddyScaleWindow        - If set the value will be multiple by the number
+"   GiddyScaleWindow        - If set this value will be multiplied by the number
 "                             of lines in the current window to calculate the
 "                             size of the git split window.
-"                           - The maximum value is 1 which cause Giddy now to
-"                             split the window but use the entire current
-"                             window.
-"                           - By default the value is 0.5.
+"                           - The default the value is 0.5 (max: 1)
 
 
 if exists('g:giddy_loaded') && !exists('g:giddy_dev')
@@ -82,18 +79,17 @@ command! Gbranch            call Gbranch()
 command! Gbranches          call Gbranches()
 command! GcreateBranch      call GcreateBranch()
 command! GdeleteBranch      call GdeleteBranch()
-command! GwipeBranch        call GwipeBranch()
 command! GdiffThis          call Gdiff(expand('%:p'))
 command! GdiffAll           call Gdiff(s:ALL)
 command! GdiffStaged        call Gdiff(expand('%:p'), s:STAGED)
 command! GdiffStagedAll     call Gdiff(s:ALL, s:STAGED)
-command! Gcommit            call Gcommit(s:NEW)
-command! GcommitAmend       call Gcommit(s:AMEND)
 command! GlogThis           call Glog(expand('%:p'))
 command! GlogAll            call Glog(s:ALL)
+command! Gcommit            call Gcommit(s:NEW)
+command! GcommitAmend       call Gcommit(s:AMEND)
+command! Gpull              call Gpull()
 command! Gpush              call Gpush()
 command! Greview            call Greview()
-command! Gpull              call Gpull()
 command! Gstash             call Gstash()
 command! GstashPop          call GstashPop()
 
@@ -615,11 +611,6 @@ function! GdeleteBranch() abort
     endif
 endfunction
 
-function! GwipeBranch() abort
-    call s:SetTopLevel()
-    call s:Error('Not implemented yet.')
-endfunction
-
 function! Gdiff(arg, ...) abort
     " Check if we're already in a giddy buffer
     if exists('b:giddy_buffer')
@@ -904,8 +895,8 @@ nnoremap gl                 :GlogThis<CR>
 nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
 nnoremap gA                 :GcommitAmend<CR>
-nnoremap gP                 :Gpush<CR>
 nnoremap gp                 :Gpull<CR>
+nnoremap gP                 :Gpush<CR>
 nnoremap gR                 :Greview<CR>
 nnoremap gk                 :Gstash<CR>
 nnoremap gK                 :GstashPop<CR>
