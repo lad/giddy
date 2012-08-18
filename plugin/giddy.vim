@@ -16,7 +16,7 @@
 if exists('g:giddy_loaded') && !exists('g:giddy_dev')
     finish
 endif
-let g:giddy_loaded=1
+let g:giddy_loaded = 1
 
 if exists('g:GiddyScaleWindow')
     if g:GiddyScaleWindow > 1
@@ -25,7 +25,7 @@ if exists('g:GiddyScaleWindow')
                    \ '). Maximum allowable value is 1.')
     endif
 else
-    let g:GiddyScaleWindow=0.5
+    let g:GiddyScaleWindow = 0.5
 endif
 
 " This is used so we can use runtime to load the files in the syntax directory
@@ -34,15 +34,15 @@ if !exists('g:added_runtimepath')
     let g:added_runtimepath = 1
 endif
 
-let s:ALL=1
-let s:FILE=2
-let s:NEW=3
-let s:AMEND=4
-let s:IGNORE_ERROR=5
-let s:AGAIN=6
-let s:NOECHO=7
-let s:TOGGLE=8
-let s:STAGED=9
+let s:ALL = 1
+let s:FILE = 2
+let s:NEW = 3
+let s:AMEND = 4
+let s:IGNORE_ERROR = 5
+let s:AGAIN = 6
+let s:NOECHO = 7
+let s:TOGGLE = 8
+let s:STAGED = 9
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -67,11 +67,11 @@ let s:GCOMMIT_BUFFER = '_git_commit'
 let s:GSTATUS_BUFFER = '_git_status'
 let s:GDIFF_BUFFER = '_git_diff'
 
-let s:STATUS_HELP=['# Keys: <F1> (toggle help), a (add), A (add all), r (reset), e (edit)',
+let s:STATUS_HELP = ['# Keys: <F1> (toggle help), a (add), A (add all), r (reset), e (edit)',
                  \ '#       c (checkout), Q (quit)']
 
-let s:DIFF_HELP=['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
-               \ '#       zf (first diff, next file) zF (first diff, previous file)']
+let s:DIFF_HELP = ['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
+                \ '#       zf (first diff, next file) zF (first diff, previous file)']
 
 command! Git                call Git()
 command! Gstatus            call Gstatus()
