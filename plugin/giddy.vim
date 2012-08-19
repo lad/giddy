@@ -902,18 +902,17 @@ endfunction
 
 function! ReloadCurrentBuffer() abort
     " Reload if unmodified otherwise get confirmation first
-    let l:reload = 'n'
     if &modified == 1
-        let l:reload = s:UserInput(expand('%') . ' is modified. Reload [y/n]')
-        if l:reload !=? 'y'
+        let l:filenamae = expand('%')
+        if s:UserInput(l:filename . ' is modified. Reload [y/n]') !=? 'y'
             return
         endif
     endif
 
     execute 'silent edit! +' . line('.')
 
-    if l:reload ==? 'y'
-        call s:Echo(expand('%') . ' reloaded')
+    if exists('l:filename')
+        call s:Echo('Reloaded ' . l:filename)
     endif
 endfunction
 
