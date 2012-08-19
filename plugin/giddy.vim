@@ -138,15 +138,19 @@ endfunction
 " Set b:top_level to the path of the repository containing the current file
 function! s:SetTopLevel() abort
     if !exists('b:top_level')
+        " git rev-parse can determine the top level
         let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
         let l:output = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
-        if v:shell_error
+        if !v:shell_error && l:output !~? '^fatal'
+            " No errors
+            let b:top_level = substitute(l:output, '\n', "", "")
+        else
+            " Probably not a git dir
+            if strlen(l:output)
+                call s:Error(l:output)
+            endif
             return -1
         endif
-        if l:output =~? '^fatal'
-            return -1
-        endif
-        let b:top_level = substitute(l:output, '\n', "", "")
     endif
     return 0
 endfunction
@@ -272,6 +276,9 @@ function! s:Checkout()
         let l:yn = s:UserInput('s:Checkout ' . l:filename . ' [y/n]')
         if l:yn ==? 'y'
             wincmd p
+            if s:SetTopLevel() != 0
+                return
+            endif
             let l:output = Git('checkout ' . l:filename)
             if l:output == -1
                 return
@@ -508,7 +515,9 @@ function! Gstatus(...) abort
         endif
     endif
 
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
@@ -557,7 +566,9 @@ function! Gstatus(...) abort
 endfunction
 
 function! Gbranch() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:output = Git('branch')
     if l:output != -1
         let l:o = matchstr(split(l:output, '\n'), '\*\ze .*')
@@ -567,7 +578,9 @@ function! Gbranch() abort
 endfunction
 
 function! Gbranches() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:current = s:EchoExistingBranches()
     if l:current != -1
         let l:br = s:EnterBranchName('Switch branch [' . l:current . ']')
@@ -582,7 +595,9 @@ function! Gbranches() abort
 endfunction
 
 function! GcreateBranch() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:current = s:EchoExistingBranches()
     if l:current != -1
         let l:br = s:EnterBranchName('Create branch')
@@ -602,7 +617,9 @@ function! GcreateBranch() abort
 endfunction
 
 function! GdeleteBranch() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let current = s:EchoExistingBranches()
     if current != -1
         let br = s:EnterBranchName('Delete branch')
@@ -632,7 +649,9 @@ function! Gdiff(arg, ...) abort
         endif
     endif
 
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
 
     " First arg (required) is S:ALL or a filename
     if a:arg == s:ALL
@@ -690,7 +709,9 @@ function! Gcommit(arg) abort
         endif
     endif
 
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:tmpfile = tempname()
     let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
     if l:commit_msg == -1
@@ -750,7 +771,9 @@ function! Glog(arg) abort
         endif
     endif
 
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     if a:arg == s:ALL
         let l:filename = ''
     else
@@ -774,7 +797,9 @@ function! Glog(arg) abort
 endfunction
 
 function! Gpush() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     echo 'Pushing...'
     let l:output = Git('push')
     if l:output != -1
@@ -791,7 +816,9 @@ endfunction
 
 " Gerrit push for review
 function! Greview() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     echo 'Pushing for review...'
     if exists('g:GiddyGerritBranch')
         let l:review_branch = g:GiddyGerritBranch
@@ -807,7 +834,9 @@ function! Greview() abort
 endfunction
 
 function! Gpull() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     echo 'Pulling...'
     let l:output = Git('pull')
     if l:output != -1
@@ -823,7 +852,9 @@ function! Gpull() abort
 endfunction
 
 function! Gstash() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:output = Git('stash')
     if l:output != -1
         if split(l:output, '\n')[0] == s:NoLocalChangesToSave
@@ -837,7 +868,9 @@ function! Gstash() abort
 endfunction
 
 function! GstashPop() abort
-    call s:SetTopLevel()
+    if s:SetTopLevel() != 0
+        return
+    endif
     let l:output = Git('stash pop')
     if l:output != -1
         call s:EchoLines(l:output)
