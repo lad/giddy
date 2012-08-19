@@ -67,10 +67,10 @@ let s:GSTATUS_BUFFER = '_git_status'
 let s:GDIFF_BUFFER = '_git_diff'
 
 let s:STATUS_HELP = ['# Keys: <F1> (toggle help), a (add), A (add all), r (reset), e (edit)',
-                 \ '#       c (checkout), Q (quit)']
+                   \ '#       c (checkout), Q (quit)']
 
 let s:DIFF_HELP = ['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
-                \ '#       zf (first diff, next file) zF (first diff, previous file)']
+                  \ '#       zf (first diff, next file) zF (first diff, previous file)']
 
 command! Git                call Git()
 command! Gstatus            call Gstatus()
@@ -423,7 +423,9 @@ function! s:CommitBufferAuBufWrite() abort
         return -1
     endif
 
-    call writefile(l:lines, tempname())
+    " b:tmpfile will is used in CommitBufferAuBufUnload() below
+    let b:tmpfile = tempname())
+    call writefile(l:lines, b:tmpfile)
 endfunction
 
 function! s:CommitBufferAuBufUnload() abort
