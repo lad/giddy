@@ -151,7 +151,7 @@ function! s:SetTopLevel() abort
     return 0
 endfunction
 
-function s:EnterBranchName(prompt)
+function! s:EnterBranchName(prompt)
     return substitute(s:UserInput(prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
