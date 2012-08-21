@@ -156,7 +156,7 @@ function! s:SetTopLevel() abort
 endfunction
 
 function! s:EnterBranchName(prompt)
-    return substitute(s:UserInput(prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
+    return substitute(s:UserInput(a:prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
 " Return the name of the current branch
@@ -903,7 +903,7 @@ endfunction
 function! ReloadCurrentBuffer() abort
     " Reload if unmodified otherwise get confirmation first
     if &modified == 1
-        let l:filenamae = expand('%')
+        let l:filename = expand('%')
         if s:UserInput(l:filename . ' is modified. Reload [y/n]') !=? 'y'
             return
         endif
