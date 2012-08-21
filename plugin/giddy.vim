@@ -220,25 +220,38 @@ function! s:CalcWinSize(lines, min_lines) abort
     return min([len(a:lines), l:max_win_size])
 endfunction
 
-" Create the buffer used to display output from various git commands (diff, status, log, etc)
-function! s:CreateScratchBuffer(name, size)
-    " Get the buffer number using the given name to check if already exists
+" Split the screen and open/create a scratch buffer used to display output from
+" various git commands (diff, status, log, etc)
+function! s:ShowScratchBuffer(name, size)
+    " Save these so they can be set as buffer variables in the scratch buffer
+    let l:top_level = b:top_level
+    if exists('b:src_buffer')
+        " We may already be in a scratch buffer, so use the existing src_buffer
+        " setting
+        let l:src_buffer = b:src_buffer
+    else
+        " Save the name of the buffer that opened this scratch buffer
+        let l:src_buffer = bufname(bufnr('%'))
+    endif
+
+    " Is there an open window with this buffer name?
     let l:winnr = bufwinnr('^' . a:name . '$')
     if l:winnr >= 0
-        " Change to that buffer and clear its contents
-        silent execute l:winnr . 'wincmd w'
-        setlocal modifiable
-        silent! execute '1,' . line('$') . 'delete _'
+        " move to that window
+        execute l:winnr . 'wincmd w'
     else
-        " Set the value of top_level of the repository so we can set it in the new buffer
-        let l:top_level = b:top_level
-
-        " Create the buffer of that name and set it up as a scratch buffer
+        " split the window and open/create a buffer with the given name
         silent! execute a:size . 'new ' . a:name
-        setlocal buftype=nofile bufhidden=wipe nobuflisted noswapfile
-        setlocal modifiable
-        let b:top_level = l:top_level
     endif
+
+    setlocal modifiable
+    silent! execute '1,' . line('$') . 'delete _'
+
+    let b:giddy_buffer = a:name
+    let b:top_level = l:top_level
+    let b:src_buffer = l:src_buffer
+    " set it up as a scratch buffer
+    setlocal buftype=nofile bufhidden=hide nobuflisted noswapfile
 endfunction
 
 function! s:FindStatusFile()
@@ -532,8 +545,7 @@ function! Gstatus(...) abort
             endif
         else
             let l:size = s:CalcWinSize(l:lines, 5)
-            call s:CreateScratchBuffer(s:GSTATUS_BUFFER, l:size)
-            let b:giddy_buffer = s:GSTATUS_BUFFER
+            call s:ShowScratchBuffer(s:GSTATUS_BUFFER, l:size)
             call append(line('$'), l:lines)
             runtime syntax/git-status.vim
             setlocal cursorline
@@ -673,8 +685,7 @@ function! Gdiff(arg, ...) abort
             call s:Error('No changes')
         else
             let l:lines = split(l:output, '\n')
-            call s:CreateScratchBuffer(s:GDIFF_BUFFER, s:CalcWinSize(l:lines, 5))
-            let b:giddy_buffer = s:GDIFF_BUFFER
+            call s:ShowScratchBuffer(s:GDIFF_BUFFER, s:CalcWinSize(l:lines, 5))
             call append(line('$'), l:lines)
             runtime syntax/git-diff.vim
             " delete without saving to a register
@@ -782,8 +793,7 @@ function! Glog(arg) abort
     let l:output = Git('log ' . l:filename)
     if l:output != -1
         let l:lines = split(l:output, '\n')
-        call s:CreateScratchBuffer(s:GLOG_BUFFER, s:CalcWinSize(l:lines, 5))
-        let b:giddy_buffer = s:GLOG_BUFFER
+        call s:ShowScratchBuffer(s:GLOG_BUFFER, s:CalcWinSize(l:lines, 5))
         call append(line('$'), l:lines)
         runtime syntax/git-log.vim
         " delete without saving to a register
