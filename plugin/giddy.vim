@@ -444,7 +444,7 @@ function! s:CommitBufferAuBufWrite() abort
     endif
 
     " b:tmpfile will is used in CommitBufferAuBufUnload() below
-    let b:tmpfile = tempname())
+    let b:tmpfile = tempname()
     call writefile(l:lines, b:tmpfile)
 endfunction
 
@@ -711,7 +711,7 @@ endfunction
 
 " Use --porcelain?
 function! Gcommit(arg) abort
-    " Check if we're already in a giddy buffer
+    " Check if we're already in a giddy scratch buffer
     if exists('b:giddy_buffer')
         if b:giddy_buffer ==# s:GCOMMIT_BUFFER
             return
@@ -756,8 +756,12 @@ function! Gcommit(arg) abort
 
     silent! execute '1,' . line('$') . 'delete _'
     call append(line('$'), l:lines)
-    " delete blank first line without saving to a register
+
+    " we end up with a blank first line, delete it
     silent! execute 'delete _'
+
+    " Setup autocommands that get run when we write and unload this commit buffer.
+    " They will decide whether to commit or abort the changes.
 
     command! -buffer CommitBufferAuBufWrite call s:CommitBufferAuBufWrite()
     command! -buffer CommitBufferAuBufUnload call s:CommitBufferAuBufUnload ()
@@ -785,6 +789,8 @@ function! Glog(arg) abort
     if s:SetTopLevel() != 0
         return
     endif
+
+    " First arg (required) is S:ALL or a filename
     if a:arg == s:ALL
         let l:filename = ''
     else
