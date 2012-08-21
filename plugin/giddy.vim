@@ -493,6 +493,44 @@ function! s:ShowHelp(...) abort
 endfunction
 
 
+function! ReloadRepoWindows() abort
+    "Save the current window number so we end up back where we started
+    let l:winnr = winnr()
+
+    " Reload all windows which have files in the current repository
+    let l:top_level = b:top_level
+    windo call ReloadWindows(l:top_level)
+
+    " Move back to the window we started in
+    execute l:winnr . 'wincmd w'
+endfunction
+
+function! ReloadWindows(top_level) abort
+    " This is run on each open window. If b:top_level matches the value
+    " passed in then this window contains a file in the current repository,
+    " so reload it (checking for any unsaved modifications)
+    if s:SetTopLevel() == 0 && a:top_level == b:top_level
+        call ReloadCurrentBuffer()
+    endif
+endfunction
+
+function! ReloadCurrentBuffer() abort
+    " Reload if unmodified otherwise get confirmation first
+    if &modified == 1
+        let l:filename = expand('%')
+        if s:UserInput(l:filename . ' is modified. Reload [y/n]') !=? 'y'
+            return
+        endif
+    endif
+
+    execute 'silent edit! +' . line('.')
+
+    if exists('l:filename')
+        call s:Echo('Reloaded ' . l:filename)
+    endif
+endfunction
+
+
 " ---------------- Callable git functions from here ------------------
 
 
@@ -894,44 +932,6 @@ function! GstashPop() abort
         call ReloadRepoWindows()
     endif
 endfunction
-
-function! ReloadRepoWindows() abort
-    "Save the current window number so we end up back where we started
-    let l:winnr = winnr()
-
-    " Reload all windows which have files in the current repository
-    let l:top_level = b:top_level
-    windo call ReloadWindows(l:top_level)
-
-    " Move back to the window we started in
-    execute l:winnr . 'wincmd w'
-endfunction
-
-function! ReloadWindows(top_level) abort
-    " This is run on each open window. If b:top_level matches the value
-    " passed in then this window contains a file in the current repository,
-    " so reload it (checking for any unsaved modifications)
-    if s:SetTopLevel() == 0 && a:top_level == b:top_level
-        call ReloadCurrentBuffer()
-    endif
-endfunction
-
-function! ReloadCurrentBuffer() abort
-    " Reload if unmodified otherwise get confirmation first
-    if &modified == 1
-        let l:filename = expand('%')
-        if s:UserInput(l:filename . ' is modified. Reload [y/n]') !=? 'y'
-            return
-        endif
-    endif
-
-    execute 'silent edit! +' . line('.')
-
-    if exists('l:filename')
-        call s:Echo('Reloaded ' . l:filename)
-    endif
-endfunction
-
 
 " -------------- SHORTCUTS ------------------
 
