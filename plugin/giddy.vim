@@ -776,11 +776,16 @@ function! Gcommit(arg) abort
         return
     endif
 
+    " Save these so they can be set as buffer variables in the new buffer
     let l:top_level = b:top_level
+    let l:src_buffer = bufname(bufnr('%'))
+
     silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
     setlocal modifiable
     setlocal filetype=gitcommit
+
     let b:top_level = l:top_level
+    let b:src_buffer = l:src_buffer
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
 
