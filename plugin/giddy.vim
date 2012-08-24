@@ -42,6 +42,8 @@ let s:AGAIN = 6
 let s:NOECHO = 7
 let s:TOGGLE = 8
 let s:STAGED = 9
+let s:FILE = 10
+let s:UPSTREAM = 11
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -78,11 +80,12 @@ command! Gbranch            call Gbranch()
 command! Gbranches          call Gbranches()
 command! GcreateBranch      call GcreateBranch()
 command! GdeleteBranch      call GdeleteBranch()
-command! GdiffThis          call Gdiff(expand('%:p'))
+command! Gdiff              call Gdiff(s:FILE, expand('%:p'))
 command! GdiffAll           call Gdiff(s:ALL)
-command! GdiffStaged        call Gdiff(expand('%:p'), s:STAGED)
+command! GdiffStaged        call Gdiff(s:FILE, expand('%:p'), s:STAGED)
 command! GdiffStagedAll     call Gdiff(s:ALL, s:STAGED)
-command! GlogThis           call Glog(expand('%:p'))
+command! GdiffUpstream      call Gdiff(s:UPSTREAM)
+command! Glog               call Glog(expand('%:p'))
 command! GlogAll            call Glog(s:ALL)
 command! Gcommit            call Gcommit(s:NEW)
 command! GcommitAmend       call Gcommit(s:AMEND)
@@ -703,21 +706,45 @@ function! Gdiff(arg, ...) abort
         return
     endif
 
-    " First arg (required) is S:ALL or a filename
+    " First arg is: s:ALL, s:FILE, s:UPSTREAM
     if a:arg == s:ALL
-        let l:filename = ''
+        let l:gargs = ''
+    elseif a:arg == s:FILE
+        if a:0 >= 1
+            let l:gargs = a:1
+        else
+            call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . ')')
+        endif
+    elseif a:arg == s:UPSTREAM
+        if a:0 != 0
+            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+        endif
+
+        let l:local = s:GetCurrentBranch()
+        if l:local == -1
+            return
+        endif
+
+        " the refs pattern  matches a single head ref (the tip of the current branch)
+        let l:remote = Git("for-each-ref --format='%(upstream:short)' refs/heads/" . l:local)
+        if l:remote != -1
+            let l:remote = split(l:remote, '\n')[0]
+        else
+            return
+        endif
+
+        " diff from upstream to us
+        let l:gargs = l:remote . '..'
     else
-        let l:filename = a:arg
+        call s:Error('Script Error: invalid argument')
+        return
     endif
 
-    " Second arg is optional
-    if a:0 == 1 && a:1 == s:STAGED
-        let l:staged = '--staged '
-    else
-        let l:staged = ''
+    if a:0 > 0 && a:000[a:0 - 1] == s:STAGED
+        let l:gargs = '--staged ' . l:gargs
     endif
 
-    let l:output = Git('diff ' . l:staged . l:filename)
+    let l:output = Git('diff ' . l:gargs)
     if l:output != -1
         if l:output == ''
             call s:Error('No changes')
@@ -946,11 +973,11 @@ nnoremap gb                 :Gbranch<CR>
 nnoremap gB                 :Gbranches<CR>
 nnoremap gc                 :GcreateBranch<CR>
 nnoremap gT                 :GdeleteBranch<CR>
-nnoremap gd                 :GdiffThis<CR>
+nnoremap gd                 :Gdiff<CR>
 nnoremap gD                 :GdiffAll<CR>
 nnoremap gj                 :GdiffStaged<CR>
 nnoremap gJ                 :GdiffStagedAll<CR>
-nnoremap gl                 :GlogThis<CR>
+nnoremap gl                 :Glog<CR>
 nnoremap gL                 :GlogAll<CR>
 nnoremap gC                 :Gcommit<CR>
 nnoremap gA                 :GcommitAmend<CR>
@@ -959,3 +986,4 @@ nnoremap gP                 :Gpush<CR>
 nnoremap gR                 :Greview<CR>
 nnoremap gk                 :Gstash<CR>
 nnoremap gK                 :GstashPop<CR>
+nnoremap gu                 :GdiffUpstream<CR>
