@@ -44,6 +44,7 @@ let s:TOGGLE = 8
 let s:STAGED = 9
 let s:FILE = 10
 let s:UPSTREAM = 11
+let s:NOREDRAW = 12
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -110,7 +111,9 @@ function! s:EchoLines(lines)
 endfunction
 
 function! s:Error(text, ...)
-    redraw
+    if a:0 == 0 || a:1 != s:NOREDRAW
+        redraw
+    endif
     echohl ErrorHL
     call s:EchoLines(a:text)
     echohl None
@@ -439,10 +442,20 @@ function! s:CommitBufferAuBufWrite() abort
     if l:num_lines == 0
         call s:Error('No commit messages present')
         echo ' '
+        " remove previous written commit message (if any)
+        if exists('b:tmpfile')
+            call delete(b:tmpfile)
+            unlet b:tmpfile
+        endif
         return -1
     elseif strlen(l:lines[0]) == 0
         call s:Error('The first line must contain a commit message')
         echo ' '
+        " remove previous written commit message (if any)
+        if exists('b:tmpfile')
+            call delete(b:tmpfile)
+            unlet b:tmpfile
+        endif
         return -1
     endif
 
@@ -465,7 +478,7 @@ function! s:CommitBufferAuBufUnload() abort
             call s:Echo('Committed')
         endif
     else
-        call s:Error('No files committed')
+        call s:Error('No files committed', s:NOREDRAW)
     endif
 
     silent! execute bufnr(bufname('%')) . 'bdelete'

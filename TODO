@@ -1,2 +1,3 @@
 - Revamp opening of stash buffers when already in a stash buffer
 - Reload affected buffers on stash push/pop
+- Keep current position in status window after add/reset files
