@@ -753,10 +753,12 @@ function! Gdiff(arg, ...) abort
         return
     endif
 
+    " The last arg may be s:STAGED
     if a:0 > 0 && a:000[a:0 - 1] == s:STAGED
         let l:gargs = '--staged ' . l:gargs
     endif
 
+    " Run the diff command with the assembled args
     let l:output = Git('diff ' . l:gargs)
     if l:output != -1
         if l:output == ''
@@ -766,7 +768,7 @@ function! Gdiff(arg, ...) abort
             call s:ShowScratchBuffer(s:GDIFF_BUFFER, s:CalcWinSize(l:lines, 5))
             call append(line('$'), l:lines)
             runtime syntax/git-diff.vim
-            " delete without saving to a register
+            " we end up with a blank first line, delete it
             silent! execute 'delete _'
             setlocal nomodified
             setlocal nomodifiable
