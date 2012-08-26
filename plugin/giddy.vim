@@ -824,12 +824,16 @@ function! Gcommit(arg) abort
     endif
     let l:lines = split(l:commit_msg, '\n')
     let l:len = len(l:lines)
-    if l:lines[l:len - 1] =~# s:NoChanges
-        call s:Error('No changes staged for commit, opening git status')
-        return Gstatus()
-    elseif l:lines[l:len - 1] =~# s:NothingToCommit
-        call s:Error(s:NothingToCommit)
-        return
+
+    " Check for no changes (only if we're not doing an amend)
+    if a:arg != s:AMEND
+        if l:lines[l:len - 1] =~# s:NoChanges
+            call s:Error('No changes staged for commit, opening git status')
+            return Gstatus()
+        elseif l:lines[l:len - 1] =~# s:NothingToCommit
+            call s:Error(s:NothingToCommit)
+            return
+        endif
     endif
 
     " Save these so they can be set as buffer variables in the new buffer
