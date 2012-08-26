@@ -45,6 +45,7 @@ let s:STAGED = 9
 let s:FILE = 10
 let s:UPSTREAM = 11
 let s:NOREDRAW = 12
+let s:COMMIT = 13
 let s:RED = 'red'
 let s:GREEN = 'green'
 
@@ -411,6 +412,15 @@ function! s:PrevDiffFile() abort
     endif
 endfunction
 
+function! s:LogBuffer_DiffVersion() abort
+    let l:line = getline(line('.'))
+    if match(l:line, '^commit \x\+') != -1
+        let l:commit = l:line[7:-1]
+        call Gdiff(s:COMMIT, l:commit)
+    endif
+endfunction
+
+
 function! s:CommitBufferAuBufWrite() abort
     " get all lines
     let l:num_lines = line('$')
@@ -585,6 +595,7 @@ function! Gstatus(...) abort
     if s:SetTopLevel() != 0
         return
     endif
+
     let l:output = Git('status')
     if l:output != -1
         let l:lines = split(l:output, '\n')
@@ -669,12 +680,12 @@ function! GcreateBranch() abort
         let l:br = s:EnterBranchName('Create branch')
         if strlen(l:br)
             echo ' '
-            let cmd = 'checkout -b ' . l:br
+            let l:cmd = 'checkout -b ' . l:br
             if exists('g:GiddyTrackingBranch')
-                let cmd = cmd . ' ' . g:GiddyTrackingBranch
+                let l:cmd = l:cmd . ' ' . g:GiddyTrackingBranch
             endif
 
-            let l:output = Git(cmd)
+            let l:output = Git(l:cmd)
             if l:output != -1
                 call s:EchoLines(l:output)
             endif
@@ -686,12 +697,12 @@ function! GdeleteBranch() abort
     if s:SetTopLevel() != 0
         return
     endif
-    let current = s:EchoExistingBranches()
-    if current != -1
-        let br = s:EnterBranchName('Delete branch')
-        if strlen(br)
+
+    if s:EchoExistingBranches() != -1
+        let l:br = s:EnterBranchName('Delete branch')
+        if strlen(l:br)
             echo ' '
-            let l:output = Git('branch -d ' . br)
+            let l:output = Git('branch -d ' . l:br)
             if l:output != -1
                 call s:EchoLines(l:output)
             endif
@@ -702,24 +713,18 @@ endfunction
 function! Gdiff(arg, ...) abort
     " Check if we're already in a giddy buffer
     if exists('b:giddy_buffer')
-        if b:giddy_buffer ==# s:GDIFF_BUFFER
+        if a:arg == s:FILE
+            call s:Error("Can't diff a giddy buffer. Did you mean :GdiffAll?")
             return
-        else
-            " We can't do a git diff on the current file (since the current file is the giddy
-            " scratch buffer). We can only do a git diff all.
-            if a:arg != s:ALL
-                call s:Error("Can't diff a giddy buffer. Did you mean :GdiffAll?")
-                return
-            endif
-            silent! bwipe
         endif
+        silent! bwipe
     endif
 
     if s:SetTopLevel() != 0
         return
     endif
 
-    " First arg is: s:ALL, s:FILE, s:UPSTREAM
+    " First arg is: s:ALL, s:FILE, s:UPSTREAM, s:COMMIT
     if a:arg == s:ALL
         let l:gargs = ''
     elseif a:arg == s:FILE
@@ -727,10 +732,12 @@ function! Gdiff(arg, ...) abort
             let l:gargs = a:1
         else
             call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . ')')
+            return
         endif
     elseif a:arg == s:UPSTREAM
         if a:0 != 0
             call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+            return
         endif
 
         let l:local = s:GetCurrentBranch()
@@ -748,6 +755,13 @@ function! Gdiff(arg, ...) abort
 
         " diff from upstream to us
         let l:gargs = l:remote . '..'
+    elseif a:arg == s:COMMIT
+        if a:0 != 1
+            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+            return
+        endif
+
+        let l:gargs = a:1 . '..'
     else
         call s:Error('Script Error: invalid argument')
         return
@@ -858,17 +872,11 @@ endfunction
 function! Glog(arg) abort
     " Check if we're already in a giddy scratch buffer
     if exists('b:giddy_buffer')
-        if b:giddy_buffer ==# s:GLOG_BUFFER
+        if a:arg != s:ALL
+            call s:Error("Can't log a giddy buffer. Did you mean :GlogAll?")
             return
-        else
-            " We can't do a git log on the current file (since the current file is the giddy
-            " scratch buffer). We can only do a git log all.
-            if a:arg != s:ALL
-                call s:Error("Can't log a giddy buffer. Did you mean :GlogAll?")
-                return
-            endif
-            silent! bwipe
         endif
+        silent! bwipe
     endif
 
     if s:SetTopLevel() != 0
@@ -893,7 +901,9 @@ function! Glog(arg) abort
         setlocal nomodifiable
 
         " Local mappings for the scratch buffer
+        command! -buffer DiffVersion     :call s:LogBuffer_DiffVersion()
         nnoremap <buffer> q :bwipe<CR>
+        nnoremap <buffer> d :DiffVersion<CR>
     endif
 endfunction
 
