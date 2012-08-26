@@ -33,21 +33,12 @@ if !exists('g:added_runtimepath')
     let g:added_runtimepath = 1
 endif
 
-let s:ALL = 1
-let s:FILE = 2
-let s:NEW = 3
-let s:AMEND = 4
-let s:IGNORE_ERROR = 5
-let s:AGAIN = 6
-let s:NOECHO = 7
-let s:TOGGLE = 8
-let s:STAGED = 9
-let s:FILE = 10
-let s:UPSTREAM = 11
-let s:NOREDRAW = 12
-let s:COMMIT = 13
-let s:RED = 'red'
-let s:GREEN = 'green'
+" -------------- CONSTANTS ------------------
+
+let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
+   \ s:FILE, s:UPSTREAM, s:NOREDRAW, s:COMMIT] = range(1, 13)
+
+let [s:RED, s:GREEN] = ['red', 'green']
 
 let s:ModifiedFile = '#\t.*modified:   \zs\(.*\)'
 let s:NewFile = '#\tnew file:   \zs\(.*\)'
@@ -76,6 +67,8 @@ let s:STATUS_HELP = ['# Keys: <F1> (toggle help), a (add), A (add all), r (reset
 let s:DIFF_HELP = ['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
                   \ '#       zf (first diff, next file) zF (first diff, previous file)']
 
+" -------------- COMMANDS -------------------
+
 command! Git                call Git()
 command! Gstatus            call Gstatus()
 command! Gbranch            call Gbranch()
@@ -96,6 +89,8 @@ command! Gpush              call Gpush()
 command! Greview            call Greview()
 command! Gstash             call Gstash()
 command! GstashPop          call GstashPop()
+
+" ----------- HIGHLIGHT COLOURS -------------
 
 highlight GoodHL            ctermbg=green ctermfg=white cterm=bold
 highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
@@ -162,7 +157,7 @@ function! s:SetTopLevel() abort
     return 0
 endfunction
 
-function! s:EnterBranchName(prompt)
+function! s:PromptForBranchName(prompt)
     return substitute(s:UserInput(a:prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
@@ -660,7 +655,7 @@ function! Gbranches() abort
     endif
     let l:current = s:EchoExistingBranches()
     if l:current != -1
-        let l:br = s:EnterBranchName('Switch branch [' . l:current . ']')
+        let l:br = s:PromptForBranchName('Switch branch [' . l:current . ']')
         if strlen(l:br)
             echo ' '
             let l:output = Git('checkout ' . l:br)
@@ -677,7 +672,7 @@ function! GcreateBranch() abort
     endif
     let l:current = s:EchoExistingBranches()
     if l:current != -1
-        let l:br = s:EnterBranchName('Create branch')
+        let l:br = s:PromptForBranchName('Create branch')
         if strlen(l:br)
             echo ' '
             let l:cmd = 'checkout -b ' . l:br
@@ -699,7 +694,7 @@ function! GdeleteBranch() abort
     endif
 
     if s:EchoExistingBranches() != -1
-        let l:br = s:EnterBranchName('Delete branch')
+        let l:br = s:PromptForBranchName('Delete branch')
         if strlen(l:br)
             echo ' '
             let l:output = Git('branch -d ' . l:br)
@@ -995,7 +990,6 @@ function! GstashPop() abort
 endfunction
 
 " -------------- SHORTCUTS ------------------
-
 
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
