@@ -97,7 +97,6 @@ highlight ErrorHL           ctermbg=red ctermfg=white cterm=bold
 highlight RedHL             ctermfg=red cterm=bold
 highlight GreenHL           ctermfg=green cterm=bold
 
-
 " ---------------- Private functions first ----------------------
 
 function! s:EchoLines(lines)
@@ -300,7 +299,7 @@ function! s:Checkout()
             endif
             redraw  "clear the status line
             call s:Echo('Checked out ' . l:filename)
-            call ReloadRepoWindows()
+            call s:ReloadRepoWindows()
             return Gstatus(s:NOECHO)
         else
             redraw  "clear the status line
@@ -515,28 +514,28 @@ function! s:ShowHelp(...) abort
 endfunction
 
 
-function! ReloadRepoWindows() abort
+function! s:ReloadRepoWindows() abort
     "Save the current window number so we end up back where we started
     let l:winnr = winnr()
 
     " Reload all windows which have files in the current repository
     let l:top_level = b:top_level
-    windo call ReloadWindows(l:top_level)
+    windo call s:ReloadWindows(l:top_level)
 
     " Move back to the window we started in
     execute l:winnr . 'wincmd w'
 endfunction
 
-function! ReloadWindows(top_level) abort
+function! s:ReloadWindows(top_level) abort
     " This is run on each open window. If b:top_level matches the value
     " passed in then this window contains a file in the current repository,
     " so reload it (checking for any unsaved modifications)
     if s:SetTopLevel() == 0 && a:top_level == b:top_level
-        call ReloadCurrentBuffer()
+        call s:ReloadCurrentBuffer()
     endif
 endfunction
 
-function! ReloadCurrentBuffer() abort
+function! s:ReloadCurrentBuffer() abort
     " Reload if unmodified otherwise get confirmation first
     if &modified == 1
         let l:filename = expand('%')
@@ -552,9 +551,7 @@ function! ReloadCurrentBuffer() abort
     endif
 endfunction
 
-
 " ---------------- Callable git functions from here ------------------
-
 
 function! Git(args, ...) abort
     " Run git from the repo's top-level dir
@@ -980,7 +977,7 @@ function! Gstash() abort
         else
             call s:EchoLines(l:output)
             call s:Echo('File(s) stashed')
-            call ReloadRepoWindows()
+            call s:ReloadRepoWindows()
         endif
     endif
 endfunction
@@ -993,7 +990,7 @@ function! GstashPop() abort
     if l:output != -1
         call s:EchoLines(l:output)
         call s:Echo('File(s) popped')
-        call ReloadRepoWindows()
+        call s:ReloadRepoWindows()
     endif
 endfunction
 
