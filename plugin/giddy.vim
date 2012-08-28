@@ -889,21 +889,28 @@ function! Glog(arg) abort
         let l:filename = a:arg
     endif
     let l:output = Git('log ' . l:filename)
-    if l:output != -1
-        let l:lines = split(l:output, '\n')
-        call s:ShowScratchBuffer(s:GLOG_BUFFER, s:CalcWinSize(l:lines, 5))
-        call append(line('$'), l:lines)
-        runtime syntax/git-log.vim
-        " delete without saving to a register
-        execute 'delete _'
-        setlocal nomodified
-        setlocal nomodifiable
-
-        " Local mappings for the scratch buffer
-        command! -buffer DiffVersion     :call s:LogBuffer_DiffVersion()
-        nnoremap <buffer> q :bwipe<CR>
-        nnoremap <buffer> d :DiffVersion<CR>
+    if l:output == -1
+        return
     endif
+
+    let l:lines = split(l:output, '\n')
+    if len(l:lines) == 0
+        call s:Error('No git log for ' . l:filename)
+        return
+    endif
+
+    call s:ShowScratchBuffer(s:GLOG_BUFFER, s:CalcWinSize(l:lines, 5))
+    call append(line('$'), l:lines)
+    runtime syntax/git-log.vim
+    " delete without saving to a register
+    execute 'delete _'
+    setlocal nomodified
+    setlocal nomodifiable
+
+    " Local mappings for the scratch buffer
+    command! -buffer DiffVersion     :call s:LogBuffer_DiffVersion()
+    nnoremap <buffer> q :bwipe<CR>
+    nnoremap <buffer> d :DiffVersion<CR>
 endfunction
 
 function! Gpush() abort
