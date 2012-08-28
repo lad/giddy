@@ -325,28 +325,29 @@ function! s:StatusAdd(arg) abort
     " Add the file on the current line to git's staging area, or add all files is arg is s:ALL
     if a:arg == s:FILE
         let l:filename = s:FindStatusFile()
-
         if strlen(l:filename) != 0
             if s:MatchAbove(s:MatchAdd) != -1
-                wincmd p
+
+                " Run the git command in the window which we came from
                 let l:output = Git('add -A ' . l:filename)
                 if l:output == -1
                     return
                 endif
+
+                " Save position, redraw the status window and reset to the saved position
+                let l:pos = getpos('.')
                 call Gstatus(s:AGAIN)
-                call search(l:filename . '$')
-                execute 'normal ^'
+                call setpos('.', l:pos)
             endif
-        else
-            let l:filename = ''
         endif
     elseif a:arg == s:ALL
         let l:output = Git('add -A')
         if l:output == -1
             return
         endif
+        let l:pos = getpos('.')
         call Gstatus(s:AGAIN)
-        call cursor(0, 0)
+        call setpos('.', l:pos)
     else
         call s:Error('Script Error: invalid argument')
     endif
@@ -357,6 +358,7 @@ function! s:StatusReset() abort
 
     if strlen(l:filename)
         if s:MatchAbove(s:MatchReset) != -1
+            let l:pos = getpos('.')
             wincmd p
             " Need -q for reset otherwise it will exit with a non-zero exit
             " code in some cases
@@ -365,8 +367,7 @@ function! s:StatusReset() abort
                 return
             endif
             call Gstatus(s:AGAIN)
-            call search(l:filename . '$')
-            execute 'normal ^'
+            call setpos('.', l:pos)
         endif
     endif
 endfunction
