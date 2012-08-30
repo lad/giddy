@@ -737,7 +737,7 @@ function! Gdiff(arg, ...) abort
     if a:arg == s:ALL
         let l:gargs = ''
     elseif a:arg == s:FILE
-        if a:0 == 1
+        if a:0 >= 1
             let l:gargs = a:1
         else
             call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . ')')
