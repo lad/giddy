@@ -80,8 +80,9 @@ command! GdiffAll           call Gdiff(s:ALL)
 command! GdiffStaged        call Gdiff(s:FILE, expand('%:p'), s:STAGED)
 command! GdiffStagedAll     call Gdiff(s:ALL, s:STAGED)
 command! GdiffUpstream      call Gdiff(s:UPSTREAM)
-command! Glog               call Glog(expand('%:p'))
+command! Glog               call Glog(s:FILE, expand('%:p'))
 command! GlogAll            call Glog(s:ALL)
+command! GlogUpstream       call Glog(s:UPSTREAM)
 command! Gcommit            call Gcommit(s:NEW)
 command! GcommitAmend       call Gcommit(s:AMEND)
 command! Gpull              call Gpull()
@@ -513,7 +514,6 @@ function! s:ShowHelp(...) abort
     setlocal nomodifiable
 endfunction
 
-
 function! s:ReloadRepoWindows() abort
     "Save the current window number so we end up back where we started
     let l:winnr = winnr()
@@ -550,6 +550,22 @@ function! s:ReloadCurrentBuffer() abort
         call s:Echo('Reloaded ' . l:filename)
     endif
 endfunction
+
+function! s:GetUpstreamBranch() abort
+    let l:local = s:GetCurrentBranch()
+    if l:local == -1
+        return
+    endif
+
+    " the refs pattern  matches a single head ref (the tip of the current branch)
+    let l:remote = Git("for-each-ref --format='%(upstream:short)' refs/heads/" . l:local)
+    if l:remote == -1
+        return
+    endif
+
+    return split(l:remote, '\n')[0]
+endfunction
+
 
 " ---------------- Callable git functions from here ------------------
 
@@ -721,33 +737,25 @@ function! Gdiff(arg, ...) abort
     if a:arg == s:ALL
         let l:gargs = ''
     elseif a:arg == s:FILE
-        if a:0 >= 1
+        if a:0 == 1
             let l:gargs = a:1
         else
             call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . ')')
             return
         endif
     elseif a:arg == s:UPSTREAM
-        if a:0 != 0
+        if a:0 == 0
+            let l:upstream = s:GetUpstreamBranch()
+            if l:upstream == -1
+                return
+            endif
+
+            " diff from upstream to us
+            let l:gargs = l:upstream . '..'
+        else
             call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
             return
         endif
-
-        let l:local = s:GetCurrentBranch()
-        if l:local == -1
-            return
-        endif
-
-        " the refs pattern  matches a single head ref (the tip of the current branch)
-        let l:remote = Git("for-each-ref --format='%(upstream:short)' refs/heads/" . l:local)
-        if l:remote != -1
-            let l:remote = split(l:remote, '\n')[0]
-        else
-            return
-        endif
-
-        " diff from upstream to us
-        let l:gargs = l:remote . '..'
     elseif a:arg == s:COMMIT
         if a:0 != 1
             call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
@@ -866,7 +874,7 @@ function! Gcommit(arg) abort
     au! BufUnload  <buffer> CommitBufferAuBufUnload
 endfunction
 
-function! Glog(arg) abort
+function! Glog(arg, ...) abort
     " Check if we're already in a giddy scratch buffer
     if exists('b:giddy_buffer')
         if a:arg != s:ALL
@@ -882,18 +890,40 @@ function! Glog(arg) abort
 
     " First arg (required) is S:ALL or a filename
     if a:arg == s:ALL
-        let l:filename = ''
+        let l:gargs = ''
+    elseif a:arg == s:FILE
+        if a:0 == 1
+            let l:gargs = a:1
+        else
+            call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . '). a:000' . join(a:000))
+            return
+        endif
+    elseif a:arg == s:UPSTREAM
+        if a:0 == 0
+            let l:upstream = s:GetUpstreamBranch()
+            if l:upstream == -1
+                return
+            endif
+
+            " diff from upstream to us
+            let l:gargs = l:upstream . '..'
+        else
+            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+            return
+        endif
     else
-        let l:filename = a:arg
+        call s:Error('Script Error: invalid argument')
+        return
     endif
-    let l:output = Git('log ' . l:filename)
+
+    let l:output = Git('log ' . l:gargs)
     if l:output == -1
         return
     endif
 
     let l:lines = split(l:output, '\n')
     if len(l:lines) == 0
-        call s:Error('No git log for ' . l:filename)
+        call s:Error('No git log for ' . l:gargs)
         return
     endif
 
@@ -1015,3 +1045,4 @@ nnoremap gR                 :Greview<CR>
 nnoremap gk                 :Gstash<CR>
 nnoremap gK                 :GstashPop<CR>
 nnoremap gu                 :GdiffUpstream<CR>
+nnoremap gp                 :GlogUpstream<CR>
