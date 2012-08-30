@@ -1045,4 +1045,4 @@ nnoremap gR                 :Greview<CR>
 nnoremap gk                 :Gstash<CR>
 nnoremap gK                 :GstashPop<CR>
 nnoremap gu                 :GdiffUpstream<CR>
-nnoremap gp                 :GlogUpstream<CR>
+nnoremap g;                 :GlogUpstream<CR>
