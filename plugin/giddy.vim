@@ -36,7 +36,7 @@ endif
 " -------------- CONSTANTS ------------------
 
 let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
-   \ s:FILE, s:UPSTREAM, s:NOREDRAW, s:COMMIT] = range(1, 14)
+   \ s:FILE, s:UPSTREAM, s:NOREDRAW, s:COMMIT, s:NO_BRANCH] = range(1, 15)
 
 let [s:RED, s:GREEN] = ['red', 'green']
 
@@ -55,8 +55,6 @@ let s:EverythingUpToDate = 'Everything up-to-date'
 let s:AlreadyUpToDate = 'Already up-to-date'
 
 let s:NoLocalChangesToSave = 'No local changes to save'
-
-let s:NO_BRANCH = '(no branch)'
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -543,14 +541,14 @@ endfunction
 
 function! s:GetUpstreamBranch() abort
     let l:local = s:GetCurrentBranch()
-    if l:local == -1
-        return
+    if l:local == -1 || l:local == s:NO_BRANCH
+        return l:local
     endif
 
     " the refs pattern  matches a single head ref (the tip of the current branch)
     let l:remote = Git("for-each-ref --format='%(upstream:short)' refs/heads/" . l:local)
     if l:remote == -1
-        return
+        return -1
     endif
 
     return split(l:remote, '\n')[0]
@@ -647,9 +645,13 @@ function! Gbranch() abort
         return
     endif
     let l:output = s:GetCurrentBranch()
-    if l:output != -1
-        call s:Echo(l:output)
+    if l:output == -1
+        return
+    elseif l:output == s:NO_BRANCH
+        call s:Error('No branch checked out')
+        return
     endif
+    call s:Echo(l:output)
 endfunction
 
 function! Gbranches() abort
@@ -737,6 +739,8 @@ function! Gdiff(arg, ...) abort
             let l:upstream = s:GetUpstreamBranch()
             if l:upstream == -1
                 return
+            elseif l:upstream == s:NO_BRANCH
+                call s:Error('No branch checked out. Cannot diff against a remote branch')
             endif
 
             " diff from upstream to us
@@ -891,6 +895,8 @@ function! Glog(arg, ...) abort
             let l:upstream = s:GetUpstreamBranch()
             if l:upstream == -1
                 return
+            elseif l:upstream == s:NO_BRANCH
+                call s:Error('No branch checked out. Cannot log against a remote branch')
             endif
 
             " diff from upstream to us
