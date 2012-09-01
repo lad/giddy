@@ -163,22 +163,7 @@ endfunction
 
 " Return the name of the current branch
 function! s:GetCurrentBranch() abort
-    let l:output = Git('branch -a')
-    if l:output != -1
-        let l:current = ''
-        for line in split(l:output, '\n')
-            if line[0] == '*'
-                let l:current = substitute(line, '^\* \(.*\)', '\1', '')
-                break
-            endif
-        endfor
-
-        if strlen(l:current)
-            return l:current
-        else
-            return -1
-        endif
-    endif
+    return Git('rev-parse --abbrev-ref HEAD')
 endfunction
 
 " Echos all branches in the current repository
@@ -416,7 +401,6 @@ function! s:LogBuffer_DiffVersion() abort
     endif
 endfunction
 
-
 function! s:CommitBufferAuBufWrite() abort
     " get all lines
     let l:num_lines = line('$')
@@ -566,7 +550,6 @@ function! s:GetUpstreamBranch() abort
     return split(l:remote, '\n')[0]
 endfunction
 
-
 " ---------------- Callable git functions from here ------------------
 
 function! Git(args, ...) abort
@@ -655,11 +638,9 @@ function! Gbranch() abort
     if s:SetTopLevel() != 0
         return
     endif
-    let l:output = Git('branch')
+    let l:output = s:GetCurrentBranch()
     if l:output != -1
-        let l:o = matchstr(split(l:output, '\n'), '\*\ze .*')
-        let l:o = substitute(l:o, '^* ', '', '')
-        call s:Echo(l:o)
+        call s:Echo(l:output)
     endif
 endfunction
 
@@ -971,6 +952,7 @@ function! Greview() abort
         let l:review_branch = 'develop'
     endif
 
+    " Use the name of the current branch as the gerrit checkin tag
     let l:output = Git('review ' . l:review_branch . ' ' . s:GetCurrentBranch())
     if l:output != -1
         redraw
