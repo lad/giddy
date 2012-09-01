@@ -137,8 +137,8 @@ function! s:EchoHL(text, hl)
     echohl None
 endfunction
 
-" Set b:top_level to the path of the repository containing the current file
 function! s:SetTopLevel() abort
+    " Set b:top_level to the path of the repository containing the current file
     if !exists('b:top_level')
         " git rev-parse can determine the top level
         let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
@@ -161,8 +161,8 @@ function! s:PromptForBranchName(prompt)
     return substitute(s:UserInput(a:prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
-" Return the name of the current branch
 function! s:GetCurrentBranch() abort
+    " Return the name of the current branch
     if Git('symbolic-ref HEAD', s:SILENT_ERROR) == -1
         return s:NO_BRANCH
     endif
@@ -170,8 +170,8 @@ function! s:GetCurrentBranch() abort
     return Git('rev-parse --abbrev-ref HEAD')
 endfunction
 
-" Echos all branches in the current repository
 function! s:EchoExistingBranches() abort
+    " Echo all branches in the current repository
     let l:output = Git('branch -a')
     if l:output != -1
         echo 'Existing branches:'
@@ -205,15 +205,16 @@ function! s:UserInput(prompt) abort
     return l:in
 endfunction
 
-" Calculate the size of scratch windows (uses g:GiddyScaleWindow option)
 function! s:CalcWinSize(lines, min_lines) abort
+    " Calculate the size of scratch windows (uses g:GiddyScaleWindow option)
     let l:max_win_size = max([float2nr(winheight(0) * g:GiddyScaleWindow), a:min_lines])
     return min([len(a:lines), l:max_win_size])
 endfunction
 
-" Split the screen and open/create a scratch buffer used to display output from
-" various git commands (diff, status, log, etc)
 function! s:ShowScratchBuffer(name, size)
+    " Split the screen and open/create a scratch buffer used to display output from
+    " various git commands (diff, status, log, etc)
+
     " Save these so they can be set as buffer variables in the scratch buffer
     let l:top_level = b:top_level
     if exists('b:src_buffer')
@@ -387,7 +388,6 @@ function! s:PrevDiffFile() abort
     " Find the first diff section for the previous file in a diff scratch buffer.
     let l:line = search('^diff --git', 'bn')
     if l:line != 0
-        " TODO ...
         call cursor(l:line, 0)
         if search('^diff --git', 'b') != 0
             call search('^@@')
