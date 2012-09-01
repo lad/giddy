@@ -566,7 +566,7 @@ function! Git(args, ...) abort
             return l:output
         endif
 
-        if a:0 == 1 && a:1 != s:SILENT_ERROR
+        if a:0 == 0 || a:1 != s:SILENT_ERROR
             if strlen(l:output)
                 call s:Error(l:output)
             else
