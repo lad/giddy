@@ -753,12 +753,12 @@ function! Gdiff(arg, ...) abort
             " diff from upstream to us
             let l:gargs = l:upstream . '..'
         else
-            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')')
             return
         endif
     elseif a:arg == s:COMMIT
         if a:0 != 1
-            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')')
             return
         endif
 
@@ -908,7 +908,7 @@ function! Glog(arg, ...) abort
             " diff from upstream to us
             let l:gargs = l:upstream . '..'
         else
-            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')'')
+            call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')')
             return
         endif
     else
