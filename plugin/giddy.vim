@@ -36,7 +36,9 @@ endif
 " -------------- CONSTANTS ------------------
 
 let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
-   \ s:FILE, s:UPSTREAM, s:NOREDRAW, s:COMMIT, s:NO_BRANCH] = range(1, 15)
+   \ s:FILE, s:UPSTREAM, s:NO_REDRAW, s:COMMIT] = range(1, 14)
+
+let s:NO_BRANCH = -2
 
 let [s:RED, s:GREEN] = ['red', 'green']
 
@@ -107,7 +109,7 @@ function! s:EchoLines(lines)
 endfunction
 
 function! s:Error(text, ...)
-    if a:0 == 0 || a:1 != s:NOREDRAW
+    if a:0 == 0 || a:1 != s:NO_REDRAW
         redraw
     endif
     echohl ErrorHL
@@ -164,6 +166,7 @@ endfunction
 function! s:GetCurrentBranch() abort
     " Return the name of the current branch
     if Git('symbolic-ref HEAD', s:SILENT_ERROR) == -1
+        call s:Error('No branch checked out')
         return s:NO_BRANCH
     endif
 
@@ -472,7 +475,7 @@ function! s:CommitBufferAuBufUnload() abort
             call s:Echo('Committed')
         endif
     else
-        call s:Error('No files committed', s:NOREDRAW)
+        call s:Error('No files committed', s:NO_REDRAW)
     endif
 
     silent! execute bufnr(bufname('%')) . 'bdelete'
@@ -541,7 +544,7 @@ endfunction
 
 function! s:GetUpstreamBranch() abort
     let l:local = s:GetCurrentBranch()
-    if l:local == -1 || l:local == s:NO_BRANCH
+    if l:local < 0
         return l:local
     endif
 
@@ -645,10 +648,7 @@ function! Gbranch() abort
         return
     endif
     let l:output = s:GetCurrentBranch()
-    if l:output == -1
-        return
-    elseif l:output == s:NO_BRANCH
-        call s:Error('No branch checked out')
+    if l:output < 0
         return
     endif
     call s:Echo(l:output)
@@ -737,10 +737,8 @@ function! Gdiff(arg, ...) abort
     elseif a:arg == s:UPSTREAM
         if a:0 == 0
             let l:upstream = s:GetUpstreamBranch()
-            if l:upstream == -1
+            if l:upstream < 0
                 return
-            elseif l:upstream == s:NO_BRANCH
-                call s:Error('No branch checked out. Cannot diff against a remote branch')
             endif
 
             " diff from upstream to us
@@ -893,10 +891,9 @@ function! Glog(arg, ...) abort
     elseif a:arg == s:UPSTREAM
         if a:0 == 0
             let l:upstream = s:GetUpstreamBranch()
-            if l:upstream == -1
+            if l:upstream < 0
+                call s:Error('Cannot show log', s:NO_REDRAW)
                 return
-            elseif l:upstream == s:NO_BRANCH
-                call s:Error('No branch checked out. Cannot log against a remote branch')
             endif
 
             " diff from upstream to us
