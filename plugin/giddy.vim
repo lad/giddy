@@ -35,8 +35,8 @@ endif
 
 " -------------- CONSTANTS ------------------
 
-let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
-   \ s:FILE, s:UPSTREAM, s:NOREDRAW, s:COMMIT] = range(1, 13)
+let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
+   \ s:FILE, s:UPSTREAM, s:NOREDRAW, s:COMMIT] = range(1, 14)
 
 let [s:RED, s:GREEN] = ['red', 'green']
 
@@ -55,6 +55,8 @@ let s:EverythingUpToDate = 'Everything up-to-date'
 let s:AlreadyUpToDate = 'Already up-to-date'
 
 let s:NoLocalChangesToSave = 'No local changes to save'
+
+let s:NO_BRANCH = '(no branch)'
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -163,6 +165,10 @@ endfunction
 
 " Return the name of the current branch
 function! s:GetCurrentBranch() abort
+    if Git('symbolic-ref HEAD', s:SILENT_ERROR) == -1
+        return s:NO_BRANCH
+    endif
+
     return Git('rev-parse --abbrev-ref HEAD')
 endfunction
 
@@ -560,10 +566,12 @@ function! Git(args, ...) abort
             return l:output
         endif
 
-        if strlen(l:output)
-            call s:Error(l:output)
-        else
-            call s:Error('Error running git command')
+        if a:0 == 1 && a:1 != s:SILENT_ERROR
+            if strlen(l:output)
+                call s:Error(l:output)
+            else
+                call s:Error('Error running git command')
+            endif
         endif
         return -1
     endif
@@ -785,7 +793,6 @@ function! Gdiff(arg, ...) abort
     endif
 endfunction
 
-" Use --porcelain?
 function! Gcommit(arg) abort
     " Check if we're already in a giddy scratch buffer
     if exists('b:giddy_buffer')
@@ -940,8 +947,8 @@ function! Gpush() abort
     endif
 endfunction
 
-" Gerrit push for review
 function! Greview() abort
+    " Gerrit push for review
     if s:SetTopLevel() != 0
         return
     endif
