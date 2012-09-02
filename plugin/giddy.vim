@@ -220,13 +220,12 @@ function! s:ShowScratchBuffer(name, size) abort
 
     " Save these so they can be set as buffer variables in the scratch buffer
     let l:top_level = b:top_level
-    if exists('b:src_buffer')
-        " We may already be in a scratch buffer, so use the existing src_buffer
-        " setting
-        let l:src_buffer = b:src_buffer
+    if exists('b:src_bufnr')
+        " We may already be in a scratch buffer, so use the existing setting
+        let l:src_bufnr = b:src_bufnr
     else
-        " Save the name of the buffer that opened this scratch buffer
-        let l:src_buffer = bufname(bufnr('%'))
+        " Save the buffer number of the buffer that opened this scratch buffer
+        let l:src_bufnr = bufnr('%')
     endif
 
     " Is there an open window with this buffer name?
@@ -244,7 +243,7 @@ function! s:ShowScratchBuffer(name, size) abort
 
     let b:giddy_buffer = a:name
     let b:top_level = l:top_level
-    let b:src_buffer = l:src_buffer
+    let b:src_bufnr = l:src_bufnr
     " set it up as a scratch buffer
     setlocal buftype=nofile bufhidden=hide nobuflisted noswapfile
 endfunction
@@ -478,7 +477,7 @@ function! s:CommitBufferAuBufUnload() abort
         call s:Error('No files committed', s:NO_REDRAW)
     endif
 
-    silent! execute bufnr(bufname('%')) . 'bdelete'
+    silent! execute bufnr(bufname('%')) . 'bwipe'
 endfunction
 
 function! s:ShowHelp(...) abort
@@ -829,14 +828,14 @@ function! Gcommit(arg) abort
 
     " Save these so they can be set as buffer variables in the new buffer
     let l:top_level = b:top_level
-    let l:src_buffer = bufname(bufnr('%'))
+    let l:src_bufnr = bufnr('%')
 
     silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
     setlocal modifiable
     setlocal filetype=gitcommit
 
     let b:top_level = l:top_level
-    let b:src_buffer = l:src_buffer
+    let b:src_bufnr = l:src_bufnr
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
 
