@@ -57,3 +57,13 @@ Options
     :let GiddyTrackingBranch="origin/master"
 
 `GiddyScaleWindow` If set this value will be multiplied by the number of lines in the current window to calculate the size of the git split window. The default value is 0.5 (max: 1).
+
+Installation
+------------
+
+To install giddy download installer/giddy.vmb (or the whole package). Then
+
+    vim installer/giddy.vmb
+    :so %
+    :q
+
