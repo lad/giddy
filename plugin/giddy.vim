@@ -102,13 +102,13 @@ highlight GreenHL           ctermfg=green cterm=bold
 
 " ---------------- Private functions first ----------------------
 
-function! s:EchoLines(lines)
+function! s:EchoLines(lines) abort
     for l:line in split(a:lines, '\n')
         echo l:line
     endfor
 endfunction
 
-function! s:Error(text, ...)
+function! s:Error(text, ...) abort
     if a:0 == 0 || a:1 != s:NO_REDRAW
         redraw
     endif
@@ -117,18 +117,18 @@ function! s:Error(text, ...)
     echohl None
 endfunction
 
-function! s:Echo(text, ...)
+function! s:Echo(text, ...) abort
     echohl GoodHL
     call s:EchoLines(a:text)
     echohl None
 endfunction
 
-function! s:EchoDebug(text)
+function! s:EchoDebug(text) abort
     call s:EchoLines(a:text)
     call input('>')
 endfunction
 
-function! s:EchoHL(text, hl)
+function! s:EchoHL(text, hl) abort
     if a:hl == 'red'
         echohl RedHL
     elseif a:hl == 'green'
@@ -159,7 +159,7 @@ function! s:SetTopLevel() abort
     return 0
 endfunction
 
-function! s:PromptForBranchName(prompt)
+function! s:PromptForBranchName(prompt) abort
     return substitute(s:UserInput(a:prompt), '^\s*\(.\{-}\)\s*$', '\1', '')
 endfunction
 
@@ -200,8 +200,8 @@ function! s:EchoExistingBranches() abort
     endif
 endfunction
 
-" Read and return input
 function! s:UserInput(prompt) abort
+    " Read and return input
     call inputsave()
     let l:in = input(a:prompt . ": ")
     call inputrestore()
@@ -214,7 +214,7 @@ function! s:CalcWinSize(lines, min_lines) abort
     return min([len(a:lines), l:max_win_size])
 endfunction
 
-function! s:ShowScratchBuffer(name, size)
+function! s:ShowScratchBuffer(name, size) abort
     " Split the screen and open/create a scratch buffer used to display output from
     " various git commands (diff, status, log, etc)
 
@@ -249,7 +249,7 @@ function! s:ShowScratchBuffer(name, size)
     setlocal buftype=nofile bufhidden=hide nobuflisted noswapfile
 endfunction
 
-function! s:FindStatusFile()
+function! s:FindStatusFile() abort
     " TODO: Modify s:FindStatusFile so that we don't pickup Untracked as allowing checkout
     " Check for '^# \a'
 
@@ -264,13 +264,13 @@ function! s:FindStatusFile()
     return l:filename
 endfunction
 
-function! s:Edit()
+function! s:Edit() abort
     let l:filename = s:FindStatusFile()
     bunload
     execute 'edit ' . b:top_level . '/' . l:filename
 endfunction
 
-function! s:Checkout()
+function! s:Checkout() abort
 
     " TODO: Modify s:FindStatusFile so that we don't pickup Untracked as allowing checkout
     " Check for '^# \a'
@@ -841,6 +841,7 @@ function! Gcommit(arg) abort
     let b:giddy_commit_type = a:arg
 
     if a:arg == s:AMEND
+        " Get the last log message and split it up into lines
         let l:amend_msg = Git('log -1 --pretty=%B')
         if l:amend_msg == -1
             return
