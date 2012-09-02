@@ -1010,8 +1010,8 @@ function! GstashPop() abort
     endif
     let l:output = Git('stash pop')
     if l:output != -1
-        call s:EchoLines(l:output)
         call s:Echo('File(s) popped')
+        call s:EchoLines(l:output)
         call s:ReloadRepoWindows()
     endif
 endfunction
