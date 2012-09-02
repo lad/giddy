@@ -417,7 +417,7 @@ function! s:LogBuffer_DiffTag() abort
     let l:match = matchstr(getline('.'), '^commit \x\+')
     if strlen(l:match)
         " Highlight this line
-        syntax clear glog_commit
+        silent! syntax clear glog_commit
         let l:syncmd = 'syntax match glog_commit "' . l:match . '"'
         silent execute l:syncmd
         hi glog_commit ctermbg=4
