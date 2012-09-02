@@ -61,7 +61,7 @@ Options
 Installation
 ------------
 
-To install giddy download installer/giddy.vmb (or the whole package). Then
+To install giddy, download `installer/giddy.vmb` or clone the whole repository, though you only need `giddy.vmb`. Then run the vimball:
 
     vim installer/giddy.vmb
     :so %
