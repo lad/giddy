@@ -2,7 +2,7 @@
 UseVimball
 finish
 plugin/giddy.vim	[[[1
-1040
+1065
 " giddy - a vim git plugin
 "
 " Author: louisadunne@gmail.com
@@ -408,7 +408,27 @@ function! s:LogBuffer_DiffVersion() abort
     let l:line = getline(line('.'))
     if match(l:line, '^commit \x\+') != -1
         let l:commit = l:line[7:-1]
-        call Gdiff(s:COMMIT, l:commit)
+
+        if exists('b:gdiffref')
+            call Gdiff(s:COMMIT, b:gdiffref, l:commit)
+        else
+            call Gdiff(s:COMMIT, l:commit)
+        endif
+    endif
+endfunction
+
+function! s:LogBuffer_DiffTag() abort
+    " Check if we're on a line with a commit ref
+    let l:match = matchstr(getline('.'), '^commit \x\+')
+    if strlen(l:match)
+        " Highlight this line
+        silent! syntax clear glog_commit
+        let l:syncmd = 'syntax match glog_commit "' . l:match . '"'
+        silent execute l:syncmd
+        hi glog_commit ctermbg=4
+
+        " Save the commit reference in a buffer var
+        let b:gdiffref = split(l:match, ' ')[1]
     endif
 endfunction
 
@@ -752,12 +772,15 @@ function! Gdiff(arg, ...) abort
             return
         endif
     elseif a:arg == s:COMMIT
-        if a:0 != 1
+        if a:0 == 1
+            let l:gargs = a:1 . '..'
+        elseif a:0 == 2
+            let l:gargs = a:1 . '..' . a:2
+        else
             call s:Error('Script Error: invalid argument (s:UPSTREAM a:0=' . a:0 . ')')
             return
         endif
 
-        let l:gargs = a:1 . '..'
     else
         call s:Error('Script Error: invalid argument')
         return
@@ -933,8 +956,10 @@ function! Glog(arg, ...) abort
 
     " Local mappings for the scratch buffer
     command! -buffer DiffVersion     :call s:LogBuffer_DiffVersion()
+    command! -buffer DiffLogTag      :call s:LogBuffer_DiffTag()
     nnoremap <buffer> q :bwipe<CR>
     nnoremap <buffer> d :DiffVersion<CR>
+    nnoremap <buffer> <space> :DiffLogTag<CR>
 endfunction
 
 function! Gpush() abort
@@ -1015,8 +1040,8 @@ function! GstashPop() abort
     endif
     let l:output = Git('stash pop')
     if l:output != -1
-        call s:EchoLines(l:output)
         call s:Echo('File(s) popped')
+        call s:EchoLines(l:output)
         call s:ReloadRepoWindows()
     endif
 endfunction
