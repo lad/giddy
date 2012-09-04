@@ -33,15 +33,16 @@ Shortcuts
     gB              Gbranches
     gc              GcreateBranch
     gT              GdeleteBranch
-    gd              GdiffThis
+    gd              Gdiff
     gD              GdiffAll
     gj              GdiffStaged
     gJ              GdiffStagedAll
     gu              GdiffUpstream
     gC              Gcommit
     gA              GcommitAmend
-    gl              GlogThis
+    gl              Glog
     gL              GlogAll
+    g;              GlogUpstream<CR>
     gp              Gpull
     gP              Gpush
     gR              Greview
