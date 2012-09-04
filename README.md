@@ -8,15 +8,16 @@ A git plugin for vim with shortcuts and commands for dealing with the most commo
 * `Gbranches` Show all branches and switch between them.
 * `GcreateBranch` Show all branches and create a new one.
 * `GdeleteBranch` Show all branches and delete one.
-* `GdiffThis` Open a split window with the diff of the current file in the working tree.
+* `Gdiff` Open a split window with the diff of the current file in the working tree.
 * `GdiffAll` Open a split window with diffs of all files in working tree.
 * `GdiffStaged` Open a split window with the diff of the current file in the staging area.
 * `GdiffStagedAll` Open a split window with diffs of all files in the staging area.
 * `GdiffUpstream` Open a split window with diffs between the upstream branch and the current branch.
+* `Glog` Open a split window showing the `git log` of the current file.
+* `GlogAll` Open a split window showing `git log` for all files.
+* `GlogUpstream` Open a split window showing the `git log` between the upstream branch and the current branch.
 * `Gcommit` Open a split window with the commit message. If the commit message is written commit the staging area. If no changes are staged for commit, open the status window.
 * `GcommitAmend` Same as Gcommit but do a `git commit --amend`
-* `GlogThis` Open a split window showing the `git log` of the current file.
-* `GlogAll` Open a split window showing `git log` for all files.
 * `Gpull` Run `git pull`
 * `Gpush` Run `git push`
 * `Greview` Do a commit against gerrit.
