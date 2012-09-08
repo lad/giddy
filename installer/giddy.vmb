@@ -2,7 +2,7 @@
 UseVimball
 finish
 plugin/giddy.vim	[[[1
-1065
+1086
 " giddy - a vim git plugin
 "
 " Author: louisadunne@gmail.com
@@ -68,11 +68,31 @@ let s:GCOMMIT_BUFFER = '_git_commit'
 let s:GSTATUS_BUFFER = '_git_status'
 let s:GDIFF_BUFFER = '_git_diff'
 
-let s:STATUS_HELP = ['# Keys: <F1> (toggle help), a (add), A (add all), r (reset), e (edit)',
-                   \ '#       c (checkout), Q (quit)']
+let s:STATUS_HELP = ['# == Keys ==',
+                   \ '# F1      Toggle help',
+                   \ '# a       Add the file on the current line',
+                   \ '# A       Add all files',
+                   \ '# r       Reset the file on the current line',
+                   \ '# e       Edit the file on the current line',
+                   \ '# c       Checkout the file on the current line',
+                   \ '# q       Quit / close status',
+                   \ '#']
 
-let s:DIFF_HELP = ['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
-                  \ '#       zf (first diff, next file) zF (first diff, previous file)']
+let s:DIFF_HELP = ['== Keys ==',
+                 \ 'F1    Toggle help',
+                 \ 'zj    Next diff',
+                 \ 'zk    Previous diff',
+                 \ 'zf    First diff of the next file',
+                 \ 'zF    First diff of the previous file',
+                 \ 'q     Quit / close diff',
+                 \ '']
+
+let s:LOG_HELP = ['== Keys ==',
+                \ 'F1       Toggle help',
+                \ '<SPACE>  Select the commit on the current line to diff against',
+                \ 'd        Diff commit on the current line against previously selected diff',
+                \ 'q        Quit / close log',
+                \ '']
 
 " -------------- COMMANDS -------------------
 
@@ -512,9 +532,7 @@ function! s:ShowHelp(...) abort
 
     setlocal modifiable
     if (!exists('b:has_help') && do_toggle) || (exists('b:has_help') && !do_toggle)
-        for n in range(0, len(l:text) - 1)
-            call append(n, l:text[n])
-        endfor
+        call append(0, l:text)
         execute 'silent normal gg'
         let b:has_help = 1
     elseif (exists('b:has_help') && do_toggle)
@@ -955,11 +973,14 @@ function! Glog(arg, ...) abort
     setlocal nomodifiable
 
     " Local mappings for the scratch buffer
-    command! -buffer DiffVersion     :call s:LogBuffer_DiffVersion()
-    command! -buffer DiffLogTag      :call s:LogBuffer_DiffTag()
-    nnoremap <buffer> q :bwipe<CR>
-    nnoremap <buffer> d :DiffVersion<CR>
-    nnoremap <buffer> <space> :DiffLogTag<CR>
+    command! -buffer DiffVersion        :call s:LogBuffer_DiffVersion()
+    command! -buffer DiffLogTag         :call s:LogBuffer_DiffTag()
+    command! -buffer ToggleHelp         :call s:ShowHelp(s:LOG_HELP, s:TOGGLE)
+
+    nnoremap <buffer> <silent> <F1>     :ToggleHelp<CR>
+    nnoremap <buffer> <silent> q        :bwipe<CR>
+    nnoremap <buffer> <silent> d        :DiffVersion<CR>
+    nnoremap <buffer> <silent> <space>  :DiffLogTag<CR>
 endfunction
 
 function! Gpush() abort
@@ -1068,43 +1089,3 @@ nnoremap gk                 :Gstash<CR>
 nnoremap gK                 :GstashPop<CR>
 nnoremap gu                 :GdiffUpstream<CR>
 nnoremap g;                 :GlogUpstream<CR>
-syntax/git-diff.vim	[[[1
-9
-runtime syntax/diff.vim
-
-" removed == red, added == green
-highlight diffRemoved ctermfg=1 cterm=bold
-highlight diffAdded ctermfg=2 cterm=bold
-highlight WhitespaceEOL ctermbg=1 cterm=bold
-
-match WhitespaceEOL "[ ]\+$"
-
-syntax/git-log.vim	[[[1
-7
-syntax match gitLogCommit +^commit \x\++
-syntax match gitLogAuthor +^Author: .*+
-syntax match gitLogDate +^Date: .*+
-
-highlight gitLogCommit ctermfg=3 cterm=bold
-highlight gitLogAuthor ctermfg=2 cterm=bold
-highlight gitLogDate ctermfg=7 cterm=bold
-syntax/git-status.vim	[[[1
-18
-runtime syntax/diff.vim
-setlocal filetype=
-
-syntax match gitStatusComment   +^#.*+ contains=ALL
-
-syntax match gitStatusBranch    +On branch .\++
-
-syntax match gitStatusUndracked +\t\zs.\++
-syntax match gitStatusNewFile   +\t\zsnew file: .\++
-syntax match gitStatusModified  +\t\zsmodified: .\++
-
-highlight link gitStatusComment     Comment
-
-highlight gitStatusBranch ctermfg=2 cterm=underline,bold
-
-highlight link gitStatusUndracked   diffOnly
-highlight link gitStatusNewFile     diffAdded
-highlight link gitStatusModified    diffChanged
