@@ -63,11 +63,31 @@ let s:GCOMMIT_BUFFER = '_git_commit'
 let s:GSTATUS_BUFFER = '_git_status'
 let s:GDIFF_BUFFER = '_git_diff'
 
-let s:STATUS_HELP = ['# Keys: <F1> (toggle help), a (add), A (add all), r (reset), e (edit)',
-                   \ '#       c (checkout), Q (quit)']
+let s:STATUS_HELP = ['# == Keys ==',
+                   \ '# F1      Toggle help',
+                   \ '# a       Add the file on the current line',
+                   \ '# A       Add all files',
+                   \ '# r       Reset the file on the current line',
+                   \ '# e       Edit the file on the current line',
+                   \ '# c       Checkout the file on the current line',
+                   \ '# q       Quit / close status',
+                   \ '#']
 
-let s:DIFF_HELP = ['# Keys: <F1> (toggle help), zj (next diff), zk (previous diff)',
-                  \ '#       zf (first diff, next file) zF (first diff, previous file)']
+let s:DIFF_HELP = ['== Keys ==',
+                 \ 'F1    Toggle help',
+                 \ 'zj    Next diff',
+                 \ 'zk    Previous diff',
+                 \ 'zf    First diff of the next file',
+                 \ 'zF    First diff of the previous file',
+                 \ 'q     Quit / close diff',
+                 \ '']
+
+let s:LOG_HELP = ['== Keys ==',
+                \ 'F1       Toggle help',
+                \ '<SPACE>  Select the commit on the current line to diff against',
+                \ 'd        Diff commit on the current line against previously selected diff',
+                \ 'q        Quit / close log',
+                \ '']
 
 " -------------- COMMANDS -------------------
 
@@ -507,9 +527,7 @@ function! s:ShowHelp(...) abort
 
     setlocal modifiable
     if (!exists('b:has_help') && do_toggle) || (exists('b:has_help') && !do_toggle)
-        for n in range(0, len(l:text) - 1)
-            call append(n, l:text[n])
-        endfor
+        call append(0, l:text)
         execute 'silent normal gg'
         let b:has_help = 1
     elseif (exists('b:has_help') && do_toggle)
@@ -950,11 +968,14 @@ function! Glog(arg, ...) abort
     setlocal nomodifiable
 
     " Local mappings for the scratch buffer
-    command! -buffer DiffVersion     :call s:LogBuffer_DiffVersion()
-    command! -buffer DiffLogTag      :call s:LogBuffer_DiffTag()
-    nnoremap <buffer> q :bwipe<CR>
-    nnoremap <buffer> d :DiffVersion<CR>
-    nnoremap <buffer> <space> :DiffLogTag<CR>
+    command! -buffer DiffVersion        :call s:LogBuffer_DiffVersion()
+    command! -buffer DiffLogTag         :call s:LogBuffer_DiffTag()
+    command! -buffer ToggleHelp         :call s:ShowHelp(s:LOG_HELP, s:TOGGLE)
+
+    nnoremap <buffer> <silent> <F1>     :ToggleHelp<CR>
+    nnoremap <buffer> <silent> q        :bwipe<CR>
+    nnoremap <buffer> <silent> d        :DiffVersion<CR>
+    nnoremap <buffer> <silent> <space>  :DiffLogTag<CR>
 endfunction
 
 function! Gpush() abort
