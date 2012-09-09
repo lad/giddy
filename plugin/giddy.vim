@@ -55,8 +55,8 @@ let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:NoChanges = 'no changes added to commit'
 let s:EverythingUpToDate = 'Everything up-to-date'
 let s:AlreadyUpToDate = 'Already up-to-date'
-
 let s:NoLocalChangesToSave = 'No local changes to save'
+let s:ANYTHING_BELOW_THIS_LINE = '== Anything below this line is ignored =='
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -408,13 +408,22 @@ endfunction
 
 function! s:PrevDiffFile() abort
     " Find the first diff section for the previous file in a diff scratch buffer.
+
+    " We have to move the cursor before we're sure there is a previous file so
+    " save the position so we can restore if necessary.
+    let l:curpos = getpos(".")
+
+    " Find the start of the current file's diff section
     let l:line = search('^diff --git', 'bn')
     if l:line != 0
         call cursor(l:line, 0)
+        " Find the start of the previous file's diff section
         if search('^diff --git', 'b') != 0
+            " Search for the first diff in this section
             call search('^@@')
         else
-            execute "silent ''"
+            " No previous file so restore the cursor to where we started
+            call setpos(".", l:curpos)
         endif
     endif
 endfunction
@@ -452,7 +461,7 @@ function! s:CommitBufferAuBufWrite() abort
     let l:num_lines = line('$')
     let l:lines = getline(1, l:num_lines)
 
-    " First remove comments
+    " First remove all comment lines
     let l:i = l:num_lines - 1
     while l:i >= 0
         if strlen(l:lines[l:i]) > 0 && l:lines[l:i][0] == '#'
@@ -460,6 +469,22 @@ function! s:CommitBufferAuBufWrite() abort
         endif
         let l:i -= 1
     endwhile
+
+    " Remove anything below the start of the diffs
+    let l:num_lines = len(l:lines)
+    let l:i = 0
+    while l:i < l:num_lines
+        if l:lines[l:i] == s:ANYTHING_BELOW_THIS_LINE
+            let l:j = l:num_lines - 1
+            while l:j >= l:i
+                unlet l:lines[l:j]
+                let l:j -= 1
+            endwhile
+            break
+        endif
+        let l:i += 1
+    endwhile
+
 
     " Remove blank lines at the end
     let l:num_lines = len(l:lines)
@@ -848,7 +873,8 @@ function! Gcommit(arg) abort
     if s:SetTopLevel() != 0
         return
     endif
-    let l:tmpfile = tempname()
+
+    " Capture what git would normally put in the editor
     let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
     if l:commit_msg == -1
         return
@@ -856,9 +882,10 @@ function! Gcommit(arg) abort
     let l:lines = split(l:commit_msg, '\n')
     let l:len = len(l:lines)
 
-    " Check for no changes (only if we're not doing an amend)
+    " Check for no changes but skip this check for commit-amend
     if a:arg != s:AMEND
         if l:lines[l:len - 1] =~# s:NoChanges
+            " TODO Something overwrite this when Gstatus is called
             call s:Error('No changes staged for commit, opening git status')
             return Gstatus()
         elseif l:lines[l:len - 1] =~# s:NothingToCommit
@@ -871,17 +898,22 @@ function! Gcommit(arg) abort
     let l:top_level = b:top_level
     let l:src_bufnr = bufnr('%')
 
+    " Open a new window/buffer with editing the file that git normally does.
+    " This is just by convention. This could be any file and the logic would
+    " still work.
     silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
     setlocal modifiable
     setlocal filetype=gitcommit
 
+    " Save these values from the parent buffer.
     let b:top_level = l:top_level
     let b:src_bufnr = l:src_bufnr
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
 
+    " For commit-amend get the last log message, split it up into lines and put
+    " them onto the front of l:lines
     if a:arg == s:AMEND
-        " Get the last log message and split it up into lines
         let l:amend_msg = Git('log -1 --pretty=%B')
         if l:amend_msg == -1
             return
@@ -889,11 +921,28 @@ function! Gcommit(arg) abort
         let l:lines = split(l:amend_msg, '\n') + l:lines
     endif
 
+    let l:diff = Git('diff --staged')
+    let l:lines = l:lines + [s:ANYTHING_BELOW_THIS_LINE, ''] + split(l:diff, '\n')
+
+    " Clear the new buffer and add the lines setup above.
     silent! execute '1,' . line('$') . 'delete _'
     call append(line('$'), l:lines)
 
     " we end up with a blank first line, delete it
     silent! execute 'delete _'
+
+    " Local mappings for the scratch buffer
+    "command! -buffer ToggleHelp     call s:ShowHelp(s:DIFF_HELP, s:TOGGLE)
+    command! -buffer NextDiff       call s:NextDiff()
+    command! -buffer NextDiffFile   call s:NextDiffFile()
+    command! -buffer PrevDiffFile   call s:PrevDiffFile()
+
+    "nnoremap <buffer> <silent> <F1> :ToggleHelp<CR>
+    nnoremap <buffer> <silent> zj   :NextDiff<CR>
+    nnoremap <buffer> <silent> zk   ?^@@<CR>
+    nnoremap <buffer> <silent> zf   :NextDiffFile<CR>
+    nnoremap <buffer> <silent> zF   :PrevDiffFile<CR>
+    nnoremap <buffer> <silent> q    :bwipe<CR>
 
     " Setup autocommands that get run when we write and unload this commit buffer.
     " They will decide whether to commit or abort the changes.
