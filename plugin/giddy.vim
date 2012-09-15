@@ -874,16 +874,15 @@ function! Gcommit(arg) abort
         return
     endif
 
-    " Capture what git would normally put in the editor
-    let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
-    if l:commit_msg == -1
-        return
-    endif
-    let l:lines = split(l:commit_msg, '\n')
-    let l:len = len(l:lines)
-
-    " Check for no changes but skip this check for commit-amend
     if a:arg != s:AMEND
+        " Capture what git would normally put in the editor
+        let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
+        if l:commit_msg == -1
+            return
+        endif
+        let l:lines = split(l:commit_msg, '\n')
+        let l:len = len(l:lines)
+
         if l:lines[l:len - 1] =~# s:NoChanges
             " TODO Something overwrite this when Gstatus is called
             call s:Error('No changes staged for commit, opening git status')
@@ -892,6 +891,15 @@ function! Gcommit(arg) abort
             call s:Error(s:NothingToCommit)
             return
         endif
+    else
+        " For commit-amend get the last log message, split it up into lines and put
+        " them onto the front of l:lines
+        let l:amend_msg = Git('log -1 --pretty=%B')
+        if l:amend_msg == -1
+            return
+        endif
+
+        let l:lines = split(l:amend_msg, '\n') + ['# Commit amend']
     endif
 
     " Save these so they can be set as buffer variables in the new buffer
@@ -911,18 +919,12 @@ function! Gcommit(arg) abort
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
 
-    " For commit-amend get the last log message, split it up into lines and put
-    " them onto the front of l:lines
-    if a:arg == s:AMEND
-        let l:amend_msg = Git('log -1 --pretty=%B')
-        if l:amend_msg == -1
-            return
-        endif
-        let l:lines = split(l:amend_msg, '\n') + l:lines
-    endif
-
     let l:diff = Git('diff --staged')
-    let l:lines = l:lines + [s:ANYTHING_BELOW_THIS_LINE, ''] + split(l:diff, '\n')
+    if l:diff != -1 && l:diff != ''
+        let l:lines = l:lines + [s:ANYTHING_BELOW_THIS_LINE, ''] + split(l:diff, '\n')
+    else
+        let l:lines = l:lines + ['# No new changes to commit']
+    endif
 
     " Clear the new buffer and add the lines setup above.
     silent! execute '1,' . line('$') . 'delete _'
