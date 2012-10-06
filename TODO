@@ -8,3 +8,4 @@
 x Put current staged diffs into COMMIT_MSG
 x Implement help in Glog window
 x Implement diff between commits in git log window
+x Cope with filenames with spaces in all commands

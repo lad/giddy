@@ -159,11 +159,16 @@ function! s:EchoHL(text, hl) abort
     echohl None
 endfunction
 
+function! s:PreparePath(path) abort
+    " Resolve links and add a backslash before any spaces
+    return substitute(resolve(a:path), " ", "\\\\ ", "g")
+endfunction
+
 function! s:SetTopLevel() abort
     " Set b:top_level to the path of the repository containing the current file
     if !exists('b:top_level')
         " git rev-parse can determine the top level
-        let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
+        let l:dir = s:PreparePath(fnamemodify(expand('%:p'), ":h"))
         let l:output = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
         if !v:shell_error && l:output !~? '^fatal'
             " No errors
@@ -278,6 +283,10 @@ function! s:FindStatusFile() abort
         let l:filename = matchstr(getline(l:linenr), s:DeletedFile)
     endif
     if strlen(l:filename) == 0
+        let l:filename = matchstr(getline(l:linenr), s:NewFile)
+    endif
+    " Do this last if we don't match anything else
+    if strlen(l:filename) == 0
         let l:filename = matchstr(getline(l:linenr), s:UntrackedFile)
     endif
     return l:filename
@@ -286,7 +295,7 @@ endfunction
 function! s:Edit() abort
     let l:filename = s:FindStatusFile()
     bunload
-    execute 'edit ' . b:top_level . '/' . l:filename
+    execute 'edit ' . s:PreparePath(b:top_level . '/' . l:filename)
 endfunction
 
 function! s:Checkout() abort
@@ -306,7 +315,7 @@ function! s:Checkout() abort
             if s:SetTopLevel() != 0
                 return
             endif
-            let l:output = Git('checkout ' . l:filename)
+            let l:output = Git('checkout ' . s:PreparePath(l:filename))
             if l:output == -1
                 return
             endif
@@ -339,9 +348,8 @@ function! s:StatusAdd(arg) abort
         let l:filename = s:FindStatusFile()
         if strlen(l:filename) != 0
             if s:MatchAbove(s:MatchAdd) != -1
-
                 " Run the git command in the window which we came from
-                let l:output = Git('add -A ' . l:filename)
+                let l:output = Git('add -A ' . s:PreparePath(l:filename))
                 if l:output == -1
                     return
                 endif
@@ -374,7 +382,7 @@ function! s:StatusReset() abort
             wincmd p
             " Need -q for reset otherwise it will exit with a non-zero exit
             " code in some cases
-            let l:output = Git('reset -q -- ' . l:filename)
+            let l:output = Git('reset -q -- ' . s:PreparePath(l:filename))
             if l:output == -1
                 return
             endif
@@ -623,7 +631,7 @@ endfunction
 
 function! Git(args, ...) abort
     " Run git from the repo's top-level dir
-    let l:output = system('cd ' . b:top_level . '; git ' . a:args)
+    let l:output = system('cd ' . s:PreparePath(b:top_level) . '; git ' . a:args)
     if v:shell_error
         if a:0 == 1 && a:1 == s:IGNORE_ERROR
             return l:output
@@ -791,7 +799,7 @@ function! Gdiff(arg, ...) abort
         let l:gargs = ''
     elseif a:arg == s:FILE
         if a:0 >= 1
-            let l:gargs = a:1
+            let l:gargs = s:PreparePath(a:1)
         else
             call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . ')')
             return
@@ -909,7 +917,7 @@ function! Gcommit(arg) abort
     " Open a new window/buffer with editing the file that git normally does.
     " This is just by convention. This could be any file and the logic would
     " still work.
-    silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
+    silent! execute 'split "' . s:PreparePath(l:top_level) . '/.git/COMMIT_MSG' . '"'
     setlocal modifiable
     setlocal filetype=gitcommit
 
@@ -975,7 +983,7 @@ function! Glog(arg, ...) abort
         let l:gargs = ''
     elseif a:arg == s:FILE
         if a:0 == 1
-            let l:gargs = a:1
+            let l:gargs = s:PreparePath(a:1)
         else
             call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . '). a:000' . join(a:000))
             return
