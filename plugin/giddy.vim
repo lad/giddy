@@ -917,7 +917,7 @@ function! Gcommit(arg) abort
     " Open a new window/buffer with editing the file that git normally does.
     " This is just by convention. This could be any file and the logic would
     " still work.
-    silent! execute 'split "' . s:PreparePath(l:top_level) . '/.git/COMMIT_MSG' . '"'
+    silent! execute 'split ' . s:PreparePath(l:top_level) . '/.git/COMMIT_MSG'
     setlocal modifiable
     setlocal filetype=gitcommit
 
