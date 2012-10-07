@@ -2,7 +2,7 @@
 UseVimball
 finish
 plugin/giddy.vim	[[[1
-1086
+1148
 " giddy - a vim git plugin
 "
 " Author: louisadunne@gmail.com
@@ -40,8 +40,8 @@ endif
 
 " -------------- CONSTANTS ------------------
 
-let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
-   \ s:FILE, s:UPSTREAM, s:NO_REDRAW, s:COMMIT] = range(1, 14)
+let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE,
+   \ s:STAGED, s:FILE, s:UPSTREAM, s:NO_REDRAW, s:COMMIT] = range(1, 14)
 
 let s:NO_BRANCH = -2
 
@@ -55,13 +55,14 @@ let s:UntrackedFile = '#\t\zs\(.*\)'
 let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
 let s:MatchReset = 'use "git reset HEAD <file>..."'
 let s:MatchCheckout = 'use "git checkout -- <file>..."'
+let s:MatchUntracked = 'Untracked files:'
 
 let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:NoChanges = 'no changes added to commit'
 let s:EverythingUpToDate = 'Everything up-to-date'
 let s:AlreadyUpToDate = 'Already up-to-date'
-
 let s:NoLocalChangesToSave = 'No local changes to save'
+let s:ANYTHING_BELOW_THIS_LINE = '== Anything below this line is ignored =='
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -164,11 +165,16 @@ function! s:EchoHL(text, hl) abort
     echohl None
 endfunction
 
+function! s:PreparePath(path) abort
+    " Resolve links and add a backslash before any spaces
+    return substitute(resolve(a:path), " ", "\\\\ ", "g")
+endfunction
+
 function! s:SetTopLevel() abort
     " Set b:top_level to the path of the repository containing the current file
     if !exists('b:top_level')
         " git rev-parse can determine the top level
-        let l:dir = fnamemodify(resolve(expand('%:p')), ":h")
+        let l:dir = s:PreparePath(fnamemodify(expand('%:p'), ":h"))
         let l:output = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
         if !v:shell_error && l:output !~? '^fatal'
             " No errors
@@ -283,6 +289,10 @@ function! s:FindStatusFile() abort
         let l:filename = matchstr(getline(l:linenr), s:DeletedFile)
     endif
     if strlen(l:filename) == 0
+        let l:filename = matchstr(getline(l:linenr), s:NewFile)
+    endif
+    " Do this last if we don't match anything else
+    if strlen(l:filename) == 0
         let l:filename = matchstr(getline(l:linenr), s:UntrackedFile)
     endif
     return l:filename
@@ -291,7 +301,7 @@ endfunction
 function! s:Edit() abort
     let l:filename = s:FindStatusFile()
     bunload
-    execute 'edit ' . b:top_level . '/' . l:filename
+    execute 'edit ' . s:PreparePath(b:top_level . '/' . l:filename)
 endfunction
 
 function! s:Checkout() abort
@@ -303,7 +313,8 @@ function! s:Checkout() abort
     let l:filename = s:FindStatusFile()
     " Check we have a filename and that "use git checkout" appears on a line
     " somewhere above the current line
-    if strlen(l:filename) && s:MatchAbove(s:MatchCheckout) != -1
+    if strlen(l:filename) && s:MatchAbove(s:MatchCheckout) != -1 &&
+     \ s:MatchAbove(s:MatchUntracked) == -1
         " Confirm this since it wipes out any changes made in that file.
         let l:yn = s:UserInput('s:Checkout ' . l:filename . ' [y/n]')
         if l:yn ==? 'y'
@@ -311,7 +322,7 @@ function! s:Checkout() abort
             if s:SetTopLevel() != 0
                 return
             endif
-            let l:output = Git('checkout ' . l:filename)
+            let l:output = Git('checkout ' . s:PreparePath(l:filename))
             if l:output == -1
                 return
             endif
@@ -344,9 +355,8 @@ function! s:StatusAdd(arg) abort
         let l:filename = s:FindStatusFile()
         if strlen(l:filename) != 0
             if s:MatchAbove(s:MatchAdd) != -1
-
                 " Run the git command in the window which we came from
-                let l:output = Git('add -A ' . l:filename)
+                let l:output = Git('add -A ' . s:PreparePath(l:filename))
                 if l:output == -1
                     return
                 endif
@@ -379,7 +389,7 @@ function! s:StatusReset() abort
             wincmd p
             " Need -q for reset otherwise it will exit with a non-zero exit
             " code in some cases
-            let l:output = Git('reset -q -- ' . l:filename)
+            let l:output = Git('reset -q -- ' . s:PreparePath(l:filename))
             if l:output == -1
                 return
             endif
@@ -413,13 +423,22 @@ endfunction
 
 function! s:PrevDiffFile() abort
     " Find the first diff section for the previous file in a diff scratch buffer.
+
+    " We have to move the cursor before we're sure there is a previous file so
+    " save the position so we can restore if necessary.
+    let l:curpos = getpos(".")
+
+    " Find the start of the current file's diff section
     let l:line = search('^diff --git', 'bn')
     if l:line != 0
         call cursor(l:line, 0)
+        " Find the start of the previous file's diff section
         if search('^diff --git', 'b') != 0
+            " Search for the first diff in this section
             call search('^@@')
         else
-            execute "silent ''"
+            " No previous file so restore the cursor to where we started
+            call setpos(".", l:curpos)
         endif
     endif
 endfunction
@@ -457,7 +476,7 @@ function! s:CommitBufferAuBufWrite() abort
     let l:num_lines = line('$')
     let l:lines = getline(1, l:num_lines)
 
-    " First remove comments
+    " First remove all comment lines
     let l:i = l:num_lines - 1
     while l:i >= 0
         if strlen(l:lines[l:i]) > 0 && l:lines[l:i][0] == '#'
@@ -465,6 +484,22 @@ function! s:CommitBufferAuBufWrite() abort
         endif
         let l:i -= 1
     endwhile
+
+    " Remove anything below the start of the diffs
+    let l:num_lines = len(l:lines)
+    let l:i = 0
+    while l:i < l:num_lines
+        if l:lines[l:i] == s:ANYTHING_BELOW_THIS_LINE
+            let l:j = l:num_lines - 1
+            while l:j >= l:i
+                unlet l:lines[l:j]
+                let l:j -= 1
+            endwhile
+            break
+        endif
+        let l:i += 1
+    endwhile
+
 
     " Remove blank lines at the end
     let l:num_lines = len(l:lines)
@@ -603,7 +638,7 @@ endfunction
 
 function! Git(args, ...) abort
     " Run git from the repo's top-level dir
-    let l:output = system('cd ' . b:top_level . '; git ' . a:args)
+    let l:output = system('cd ' . s:PreparePath(b:top_level) . '; git ' . a:args)
     if v:shell_error
         if a:0 == 1 && a:1 == s:IGNORE_ERROR
             return l:output
@@ -771,7 +806,7 @@ function! Gdiff(arg, ...) abort
         let l:gargs = ''
     elseif a:arg == s:FILE
         if a:0 >= 1
-            let l:gargs = a:1
+            let l:gargs = s:PreparePath(a:1)
         else
             call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . ')')
             return
@@ -853,52 +888,78 @@ function! Gcommit(arg) abort
     if s:SetTopLevel() != 0
         return
     endif
-    let l:tmpfile = tempname()
-    let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
-    if l:commit_msg == -1
-        return
-    endif
-    let l:lines = split(l:commit_msg, '\n')
-    let l:len = len(l:lines)
 
-    " Check for no changes (only if we're not doing an amend)
     if a:arg != s:AMEND
+        " Capture what git would normally put in the editor
+        let l:commit_msg = Git('commit --dry-run', s:IGNORE_ERROR)
+        if l:commit_msg == -1
+            return
+        endif
+        let l:lines = split(l:commit_msg, '\n')
+        let l:len = len(l:lines)
+
         if l:lines[l:len - 1] =~# s:NoChanges
+            " TODO Something overwrite this when Gstatus is called
             call s:Error('No changes staged for commit, opening git status')
             return Gstatus()
         elseif l:lines[l:len - 1] =~# s:NothingToCommit
             call s:Error(s:NothingToCommit)
             return
         endif
+    else
+        " For commit-amend get the last log message, split it up into lines and put
+        " them onto the front of l:lines
+        let l:amend_msg = Git('log -1 --pretty=%B')
+        if l:amend_msg == -1
+            return
+        endif
+
+        let l:lines = split(l:amend_msg, '\n') + ['# Commit amend']
     endif
 
     " Save these so they can be set as buffer variables in the new buffer
     let l:top_level = b:top_level
     let l:src_bufnr = bufnr('%')
 
-    silent! execute 'split ' . l:top_level . '/.git/COMMIT_MSG'
+    " Open a new window/buffer with editing the file that git normally does.
+    " This is just by convention. This could be any file and the logic would
+    " still work.
+    silent! execute 'split ' . s:PreparePath(l:top_level) . '/.git/COMMIT_MSG'
     setlocal modifiable
     setlocal filetype=gitcommit
 
+    " Save these values from the parent buffer.
     let b:top_level = l:top_level
     let b:src_bufnr = l:src_bufnr
     let b:giddy_buffer = s:GCOMMIT_BUFFER
     let b:giddy_commit_type = a:arg
 
-    if a:arg == s:AMEND
-        " Get the last log message and split it up into lines
-        let l:amend_msg = Git('log -1 --pretty=%B')
-        if l:amend_msg == -1
-            return
-        endif
-        let l:lines = split(l:amend_msg, '\n') + l:lines
+    let l:diff = Git('diff --staged')
+    if l:diff != -1 && l:diff != ''
+        let l:lines = l:lines + [s:ANYTHING_BELOW_THIS_LINE, ''] + split(l:diff, '\n')
+    else
+        let l:lines = l:lines + ['# No new changes to commit']
     endif
 
+    " Clear the new buffer and add the lines setup above.
     silent! execute '1,' . line('$') . 'delete _'
     call append(line('$'), l:lines)
 
     " we end up with a blank first line, delete it
     silent! execute 'delete _'
+
+    " Local mappings for the scratch buffer
+    "command! -buffer ToggleHelp     call s:ShowHelp(s:DIFF_HELP, s:TOGGLE)
+    command! -buffer NextDiff       call s:NextDiff()
+    command! -buffer NextDiffFile   call s:NextDiffFile()
+    command! -buffer PrevDiffFile   call s:PrevDiffFile()
+
+    "nnoremap <buffer> <silent> <F1> :ToggleHelp<CR>
+    nnoremap <buffer> <silent> zj   :NextDiff<CR>
+    nnoremap <buffer> <silent> zk   ?^@@<CR>
+    nnoremap <buffer> <silent> zf   :NextDiffFile<CR>
+    nnoremap <buffer> <silent> zF   :PrevDiffFile<CR>
+    nnoremap <buffer> <silent> q    :bwipe<CR>
 
     " Setup autocommands that get run when we write and unload this commit buffer.
     " They will decide whether to commit or abort the changes.
@@ -929,9 +990,10 @@ function! Glog(arg, ...) abort
         let l:gargs = ''
     elseif a:arg == s:FILE
         if a:0 == 1
-            let l:gargs = a:1
+            let l:gargs = s:PreparePath(a:1)
         else
-            call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . '). a:000' . join(a:000))
+            call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . '). a:000='
+                       \ . join(a:000))
             return
         endif
     elseif a:arg == s:UPSTREAM
