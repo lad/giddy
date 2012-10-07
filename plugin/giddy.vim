@@ -50,6 +50,7 @@ let s:UntrackedFile = '#\t\zs\(.*\)'
 let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
 let s:MatchReset = 'use "git reset HEAD <file>..."'
 let s:MatchCheckout = 'use "git checkout -- <file>..."'
+let s:MatchUntracked = 'Untracked files:'
 
 let s:NothingToCommit = 'nothing to commit (working directory clean)'
 let s:NoChanges = 'no changes added to commit'
@@ -307,7 +308,8 @@ function! s:Checkout() abort
     let l:filename = s:FindStatusFile()
     " Check we have a filename and that "use git checkout" appears on a line
     " somewhere above the current line
-    if strlen(l:filename) && s:MatchAbove(s:MatchCheckout) != -1
+    if strlen(l:filename) && s:MatchAbove(s:MatchCheckout) != -1 &&
+     \ s:MatchAbove(s:MatchUntracked) == -1
         " Confirm this since it wipes out any changes made in that file.
         let l:yn = s:UserInput('s:Checkout ' . l:filename . ' [y/n]')
         if l:yn ==? 'y'
