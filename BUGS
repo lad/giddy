@@ -1,2 +1,0 @@
-- The current file in vim may contain a directory that doesn't exist. Need to
-  check for this in all commands.

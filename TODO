@@ -1,10 +1,13 @@
+- The current file in vim may contain a directory that doesn't exist. Need to
+  check for this in all commands.
+
 - In the log window: add "zj" / "zk" shortcuts for jumping to the next / previous commit
 - Redo scratch buffer create/destroy. By recreating buffers instead of re-use
   the buffer numbers of a vim session increase making them unwieldy.
 - Revamp opening of stash buffers when already in a stash buffer
-- Modify s:FindStatusFile so that we don't pickup Untracked as allowing checkout
 - Implement git merge
 - Implement git stash for the current file or even git stash -i
+x Modify s:FindStatusFile so that we don't pickup Untracked as allowing checkout
 x Put current staged diffs into COMMIT_MSG
 x Implement help in Glog window
 x Implement diff between commits in git log window
