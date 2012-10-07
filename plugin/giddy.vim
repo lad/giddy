@@ -35,8 +35,8 @@ endif
 
 " -------------- CONSTANTS ------------------
 
-let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE, s:STAGED,
-   \ s:FILE, s:UPSTREAM, s:NO_REDRAW, s:COMMIT] = range(1, 14)
+let [s:ALL, s:FILE, s:NEW, s:AMEND, s:IGNORE_ERROR, s:SILENT_ERROR, s:AGAIN, s:NOECHO, s:TOGGLE,
+   \ s:STAGED, s:FILE, s:UPSTREAM, s:NO_REDRAW, s:COMMIT] = range(1, 14)
 
 let s:NO_BRANCH = -2
 
@@ -985,7 +985,8 @@ function! Glog(arg, ...) abort
         if a:0 == 1
             let l:gargs = s:PreparePath(a:1)
         else
-            call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . '). a:000' . join(a:000))
+            call s:Error('Script Error: invalid argument (s:FILE a:0=' . a:0 . '). a:000='
+                       \ . join(a:000))
             return
         endif
     elseif a:arg == s:UPSTREAM
