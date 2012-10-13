@@ -162,18 +162,18 @@ endfunction
 
 function! s:PreparePath(path) abort
     " Resolve links and add a backslash before any spaces
-    return substitute(resolve(a:path), " ", "\\\\ ", "g")
+    return substitute(resolve(a:path), '\s', '\\ ', 'g')
 endfunction
 
 function! s:SetTopLevel() abort
     " Set b:top_level to the path of the repository containing the current file
     if !exists('b:top_level')
         " git rev-parse can determine the top level
-        let l:dir = s:PreparePath(fnamemodify(expand('%:p'), ":h"))
+        let l:dir = s:PreparePath(fnamemodify(expand('%:p'), ':h'))
         let l:output = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
         if !v:shell_error && l:output !~? '^fatal'
             " No errors
-            let b:top_level = substitute(l:output, '\n', "", "")
+            let b:top_level = substitute(l:output, '\n', '', '')
         else
             " Probably not a git dir
             if strlen(l:output)
@@ -229,7 +229,7 @@ endfunction
 function! s:UserInput(prompt) abort
     " Read and return input
     call inputsave()
-    let l:in = input(a:prompt . ": ")
+    let l:in = input(a:prompt . ': ')
     call inputrestore()
     return l:in
 endfunction
@@ -306,7 +306,7 @@ function! s:Checkout() abort
 
     " Get the filename on the current line
     let l:filename = s:FindStatusFile()
-    " Check we have a filename and that "use git checkout" appears on a line
+    " Check we have a filename and that 'use git checkout' appears on a line
     " somewhere above the current line
     if strlen(l:filename) && s:MatchAbove(s:MatchCheckout) != -1 &&
      \ s:MatchAbove(s:MatchUntracked) == -1
@@ -421,7 +421,7 @@ function! s:PrevDiffFile() abort
 
     " We have to move the cursor before we're sure there is a previous file so
     " save the position so we can restore if necessary.
-    let l:curpos = getpos(".")
+    let l:curpos = getpos('.')
 
     " Find the start of the current file's diff section
     let l:line = search('^diff --git', 'bn')
@@ -433,7 +433,7 @@ function! s:PrevDiffFile() abort
             call search('^@@')
         else
             " No previous file so restore the cursor to where we started
-            call setpos(".", l:curpos)
+            call setpos('.', l:curpos)
         endif
     endif
 endfunction
@@ -676,7 +676,7 @@ function! Gstatus(...) abort
         if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NothingToCommit
             let l:nr = bufnr(s:GSTATUS_BUFFER)
             if l:nr != -1
-                execute l:nr . "bwipe"
+                execute l:nr . 'bwipe'
             endif
             if ! (a:0 > 0 && a:1 == s:NOECHO)
                 call s:Error('No changes')
