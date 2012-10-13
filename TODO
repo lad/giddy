@@ -1,11 +1,11 @@
 - The current file in vim may contain a directory that doesn't exist. Need to
   check for this in all commands.
-
+- Redo scratch buffer create/destroy. By recreating buffers instead of re-use
+  the buffer numbers of a vim session increase making them unwieldy.
+- Implement an easier way to push gerrit reviews to different branches
 - In the diff window, hit "e" to edit the file being diffed at the offset of the diff under
   the cursor
 - In the log window: add "zj" / "zk" shortcuts for jumping to the next / previous commit
-- Redo scratch buffer create/destroy. By recreating buffers instead of re-use
-  the buffer numbers of a vim session increase making them unwieldy.
 - Revamp opening of stash buffers when already in a stash buffer
 - Implement git merge
 - Implement git stash for the current file or even git stash -i
