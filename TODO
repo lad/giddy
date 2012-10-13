@@ -1,6 +1,8 @@
 - The current file in vim may contain a directory that doesn't exist. Need to
   check for this in all commands.
 
+- In the diff window, hit "e" to edit the file being diffed at the offset of the diff under
+  the cursor
 - In the log window: add "zj" / "zk" shortcuts for jumping to the next / previous commit
 - Redo scratch buffer create/destroy. By recreating buffers instead of re-use
   the buffer numbers of a vim session increase making them unwieldy.
