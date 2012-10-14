@@ -12,6 +12,33 @@
 "                             size of the git split window.
 "                           - The default the value is 0.5 (max: 1)
 
+"Split window for giddy buffer:
+"   Status
+"      Gstatus<CR>
+"   Diff
+"      Gdiff<CR>
+"      GdiffAll<CR>
+"      GdiffStaged<CR>
+"      GdiffStagedAll<CR>
+"      GdiffUpstream<CR>
+"   Commit
+"      Gcommit<CR>
+"      GcommitAmend<CR>
+"   Log
+"      Glog<CR>
+"      GlogAll<CR>
+"      GlogUpstream<CR>
+"Non-Window:
+"   Gbranch<CR>
+"   Gbranches<CR>
+"   GcreateBranch<CR>
+"   GdeleteBranch<CR>
+"   Gpull<CR>
+"   Gpush<CR>
+"   Greview<CR>
+"   Gstash<CR>
+"   GstashPop<CR>
+
 if exists('g:giddy_loaded') && !exists('g:giddy_dev')
     finish
 endif
@@ -42,22 +69,22 @@ let s:NO_BRANCH = -2
 
 let [s:RED, s:GREEN] = ['red', 'green']
 
-let s:ModifiedFile = '#\t.*modified:   \zs\(.*\)'
-let s:NewFile = '#\tnew file:   \zs\(.*\)'
-let s:DeletedFile = '#\tdeleted:    \zs\(.*\)'
-let s:UntrackedFile = '#\t\zs\(.*\)'
+let s:MODIFIED_FILE = '#\t.*modified:   \zs\(.*\)'
+let s:NEW_FILE = '#\tnew file:   \zs\(.*\)'
+let s:DELETED_FILE = '#\tdeleted:    \zs\(.*\)'
+let s:UNTRACKED_FILE = '#\t\zs\(.*\)'
 
-let s:MatchAdd = 'use "git add\(/rm\)\? <file>..."'
-let s:MatchReset = 'use "git reset HEAD <file>..."'
-let s:MatchCheckout = 'use "git checkout -- <file>..."'
-let s:MatchUntracked = 'Untracked files:'
+let s:MATCH_ADD = 'use "git add\(/rm\)\? <file>..."'
+let s:MATCH_RESET = 'use "git reset HEAD <file>..."'
+let s:MATCH_CHECKOUT = 'use "git checkout -- <file>..."'
+let s:MATCH_UNTRACKED = 'Untracked files:'
 
-let s:NothingToCommit = 'nothing to commit (working directory clean)'
-let s:NoChanges = 'no changes added to commit'
-let s:EverythingUpToDate = 'Everything up-to-date'
-let s:AlreadyUpToDate = 'Already up-to-date'
-let s:NoLocalChangesToSave = 'No local changes to save'
-let s:ANYTHING_BELOW_THIS_LINE = '== Anything below this line is ignored =='
+let s:NOTHING_TO_COMMIT = 'nothing to commit (working directory clean)'
+let s:NO_CHANGES = 'no changes added to commit'
+let s:EVERYTHING_UP_TO_DATE = 'Everything up-to-date'
+let s:ALREADY_UP_TO_DATE = 'Already up-to-date'
+let s:NO_LOCK_CHANGES_TO_SAVE = 'No local changes to save'
+let s:ANTHING_BELOW_THIS_LINE = '== Anything below this line is ignored =='
 
 let s:GLOG_BUFFER = '_git_log'
 let s:GCOMMIT_BUFFER = '_git_commit'
@@ -275,20 +302,17 @@ function! s:ShowScratchBuffer(name, size) abort
 endfunction
 
 function! s:FindStatusFile() abort
-    " TODO: Modify s:FindStatusFile so that we don't pickup Untracked as allowing checkout
-    " Check for '^# \a'
-
     let l:linenr = line('.')
-    let l:filename = matchstr(getline(l:linenr), s:ModifiedFile)
+    let l:filename = matchstr(getline(l:linenr), s:MODIFIED_FILE)
     if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:DeletedFile)
+        let l:filename = matchstr(getline(l:linenr), s:DELETED_FILE)
     endif
     if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:NewFile)
+        let l:filename = matchstr(getline(l:linenr), s:NEW_FILE)
     endif
     " Do this last if we don't match anything else
     if strlen(l:filename) == 0
-        let l:filename = matchstr(getline(l:linenr), s:UntrackedFile)
+        let l:filename = matchstr(getline(l:linenr), s:UNTRACKED_FILE)
     endif
     return l:filename
 endfunction
@@ -300,16 +324,12 @@ function! s:Edit() abort
 endfunction
 
 function! s:Checkout() abort
-
-    " TODO: Modify s:FindStatusFile so that we don't pickup Untracked as allowing checkout
-    " Check for '^# \a'
-
     " Get the filename on the current line
     let l:filename = s:FindStatusFile()
     " Check we have a filename and that 'use git checkout' appears on a line
     " somewhere above the current line
-    if strlen(l:filename) && s:MatchAbove(s:MatchCheckout) != -1 &&
-     \ s:MatchAbove(s:MatchUntracked) == -1
+    if strlen(l:filename) && s:MatchAbove(s:MATCH_CHECKOUT) != -1 &&
+     \ s:MatchAbove(s:MATCH_UNTRACKED) == -1
         " Confirm this since it wipes out any changes made in that file.
         let l:yn = s:UserInput('s:Checkout ' . l:filename . ' [y/n]')
         if l:yn ==? 'y'
@@ -349,7 +369,7 @@ function! s:StatusAdd(arg) abort
     if a:arg == s:FILE
         let l:filename = s:FindStatusFile()
         if strlen(l:filename) != 0
-            if s:MatchAbove(s:MatchAdd) != -1
+            if s:MatchAbove(s:MATCH_ADD) != -1
                 " Run the git command in the window which we came from
                 let l:output = Git('add -A ' . s:PreparePath(l:filename))
                 if l:output == -1
@@ -379,7 +399,7 @@ function! s:StatusReset() abort
     let l:filename = s:FindStatusFile()
 
     if strlen(l:filename)
-        if s:MatchAbove(s:MatchReset) != -1
+        if s:MatchAbove(s:MATCH_RESET) != -1
             let l:pos = getpos('.')
             wincmd p
             " Need -q for reset otherwise it will exit with a non-zero exit
@@ -484,7 +504,7 @@ function! s:CommitBufferAuBufWrite() abort
     let l:num_lines = len(l:lines)
     let l:i = 0
     while l:i < l:num_lines
-        if l:lines[l:i] == s:ANYTHING_BELOW_THIS_LINE
+        if l:lines[l:i] == s:ANTHING_BELOW_THIS_LINE
             let l:j = l:num_lines - 1
             while l:j >= l:i
                 unlet l:lines[l:j]
@@ -673,7 +693,7 @@ function! Gstatus(...) abort
     if l:output != -1
         let l:lines = split(l:output, '\n')
         let l:num_lines = len(l:lines)
-        if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NothingToCommit
+        if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NOTHING_TO_COMMIT
             let l:nr = bufnr(s:GSTATUS_BUFFER)
             if l:nr != -1
                 execute l:nr . 'bwipe'
@@ -893,12 +913,11 @@ function! Gcommit(arg) abort
         let l:lines = split(l:commit_msg, '\n')
         let l:len = len(l:lines)
 
-        if l:lines[l:len - 1] =~# s:NoChanges
-            " TODO Something overwrite this when Gstatus is called
+        if l:lines[l:len - 1] =~# s:NO_CHANGES
             call s:Error('No changes staged for commit, opening git status')
             return Gstatus()
-        elseif l:lines[l:len - 1] =~# s:NothingToCommit
-            call s:Error(s:NothingToCommit)
+        elseif l:lines[l:len - 1] =~# s:NOTHING_TO_COMMIT
+            call s:Error(s:NOTHING_TO_COMMIT)
             return
         endif
     else
@@ -931,7 +950,7 @@ function! Gcommit(arg) abort
 
     let l:diff = Git('diff --staged')
     if l:diff != -1 && l:diff != ''
-        let l:lines = l:lines + [s:ANYTHING_BELOW_THIS_LINE, ''] + split(l:diff, '\n')
+        let l:lines = l:lines + [s:ANTHING_BELOW_THIS_LINE, ''] + split(l:diff, '\n')
     else
         let l:lines = l:lines + ['# No new changes to commit']
     endif
@@ -944,7 +963,6 @@ function! Gcommit(arg) abort
     silent! execute 'delete _'
 
     " Local mappings for the scratch buffer
-    "command! -buffer ToggleHelp     call s:ShowHelp(s:DIFF_HELP, s:TOGGLE)
     command! -buffer NextDiff       call s:NextDiff()
     command! -buffer NextDiffFile   call s:NextDiffFile()
     command! -buffer PrevDiffFile   call s:PrevDiffFile()
@@ -1049,8 +1067,8 @@ function! Gpush() abort
     if l:output != -1
         " clear status line (Pushing...)
         redraw
-        if split(l:output, '\n')[0] =~# s:EverythingUpToDate
-            call s:Echo(s:EverythingUpToDate)
+        if split(l:output, '\n')[0] =~# s:EVERYTHING_UP_TO_DATE
+            call s:Echo(s:EVERYTHING_UP_TO_DATE)
         else
             call s:EchoLines(l:output)
             call s:Echo('Pushed')
@@ -1087,8 +1105,8 @@ function! Gpull() abort
     if l:output != -1
         " clear status line (Pulling...)
         redraw
-        if split(l:output, '\n')[0] =~# s:AlreadyUpToDate
-            call s:Echo(s:AlreadyUpToDate)
+        if split(l:output, '\n')[0] =~# s:ALREADY_UP_TO_DATE
+            call s:Echo(s:ALREADY_UP_TO_DATE)
         else
             call s:EchoLines(l:output)
             call s:Echo('Pulled')
@@ -1102,7 +1120,7 @@ function! Gstash() abort
     endif
     let l:output = Git('stash')
     if l:output != -1
-        if split(l:output, '\n')[0] == s:NoLocalChangesToSave
+        if split(l:output, '\n')[0] == s:NO_LOCK_CHANGES_TO_SAVE
             call s:Error(l:output)
         else
             call s:EchoLines(l:output)
