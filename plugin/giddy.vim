@@ -69,9 +69,9 @@ let s:NO_BRANCH = -2
 
 let [s:RED, s:GREEN] = ['red', 'green']
 
-let s:MODIFIED_FILE = '#\t.*modified:   \zs\(.*\)'
-let s:NEW_FILE = '#\tnew file:   \zs\(.*\)'
-let s:DELETED_FILE = '#\tdeleted:    \zs\(.*\)'
+let s:MODIFIED_FILE = '#\t.*modified:\s\+\zs\(.*\)'
+let s:NEW_FILE = '#\tnew file:\s\+\zs\(.*\)'
+let s:DELETED_FILE = '#\tdeleted:\s\+\zs\(.*\)'
 let s:UNTRACKED_FILE = '#\t\zs\(.*\)'
 
 let s:MATCH_ADD = 'use "git add\(/rm\)\? <file>..."'
@@ -224,6 +224,21 @@ function! s:GetCurrentBranch() abort
     endif
 
     return Git('rev-parse --abbrev-ref HEAD')
+endfunction
+
+function! s:GetUpstreamBranch() abort
+    let l:local = s:GetCurrentBranch()
+    if l:local < 0
+        return l:local
+    endif
+
+    " the refs pattern  matches a single head ref (the tip of the current branch)
+    let l:remote = Git("for-each-ref --format='%(upstream:short)' refs/heads/" . l:local)
+    if l:remote == -1
+        return -1
+    endif
+
+    return split(l:remote, '\n')[0]
 endfunction
 
 function! s:EchoExistingBranches() abort
@@ -598,7 +613,7 @@ function! s:ShowHelp(...) abort
 endfunction
 
 function! s:ReloadRepoWindows() abort
-    "Save the current window number so we end up back where we started
+    " Save the current window number so we end up back where we started
     let l:winnr = winnr()
 
     " Reload all windows which have files in the current repository
@@ -634,21 +649,6 @@ function! s:ReloadCurrentBuffer() abort
     endif
 endfunction
 
-function! s:GetUpstreamBranch() abort
-    let l:local = s:GetCurrentBranch()
-    if l:local < 0
-        return l:local
-    endif
-
-    " the refs pattern  matches a single head ref (the tip of the current branch)
-    let l:remote = Git("for-each-ref --format='%(upstream:short)' refs/heads/" . l:local)
-    if l:remote == -1
-        return -1
-    endif
-
-    return split(l:remote, '\n')[0]
-endfunction
-
 " ---------------- Callable git functions from here ------------------
 
 function! Git(args, ...) abort
@@ -674,14 +674,21 @@ endfunction
 
 function! Gstatus(...) abort
     " Gstatus can be called again from a giddy status window when we add or reset files
-    if ! (a:0 > 0 && a:1 == s:AGAIN)
+    "if ! (a:0 > 0 && a:1 == s:AGAIN)
         " Check if we're already in a giddy buffer
-        if exists('b:giddy_buffer')
-            if b:giddy_buffer ==# s:GSTATUS_BUFFER
-                return
-            else
-                silent! bwipe
-            endif
+        "if exists('b:giddy_buffer')
+            "if b:giddy_buffer ==# s:GSTATUS_BUFFER
+                "return
+            "else
+                "silent! bwipe
+            "endif
+        "endif
+    "endif
+
+    " Check if we're already in a giddy buffer
+    if exists('b:giddy_buffer')
+        if b:giddy_buffer !=# s:GSTATUS_BUFFER
+            silent! bdelete
         endif
     endif
 
@@ -695,8 +702,9 @@ function! Gstatus(...) abort
         let l:num_lines = len(l:lines)
         if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NOTHING_TO_COMMIT
             let l:nr = bufnr(s:GSTATUS_BUFFER)
-            if l:nr != -1
-                execute l:nr . 'bwipe'
+            if l:nr != -1 && bufexists(l:nr)
+                "execute l:nr . 'bwipe'
+                execute ':silent! bdelete ' . l:nr
             endif
             if ! (a:0 > 0 && a:1 == s:NOECHO)
                 call s:Error('No changes')
@@ -728,7 +736,8 @@ function! Gstatus(...) abort
             nnoremap <buffer> <silent> r        :StatusReset<CR>
             nnoremap <buffer> <silent> e        :Edit<CR>
             nnoremap <buffer> <silent> c        :Checkout<CR>
-            nnoremap <buffer> <silent> q        :bwipe<CR>
+            "nnoremap <buffer> <silent> q        :bwipe<CR>
+            nnoremap <buffer> <silent> q        :bdelete<CR>
 
             call s:ShowHelp(s:STATUS_HELP)
         endif
@@ -809,7 +818,11 @@ function! Gdiff(arg, ...) abort
             call s:Error("Can't diff a giddy buffer. Did you mean :GdiffAll?")
             return
         endif
-        silent! bwipe
+        if b:giddy_buffer !=# s:GDIFF_BUFFER
+            silent! bdelete
+        endif
+        "silent! bwipe
+        "silent! bdelete
     endif
 
     if s:SetTopLevel() != 0
@@ -885,19 +898,25 @@ function! Gdiff(arg, ...) abort
             nnoremap <buffer> <silent> zk   ?^@@<CR>
             nnoremap <buffer> <silent> zf   :NextDiffFile<CR>
             nnoremap <buffer> <silent> zF   :PrevDiffFile<CR>
-            nnoremap <buffer> <silent> q    :bwipe<CR>
+            "nnoremap <buffer> <silent> q    :bwipe<CR>
+            nnoremap <buffer> <silent> q    :bdelete<CR>
         endif
     endif
 endfunction
 
 function! Gcommit(arg) abort
     " Check if we're already in a giddy scratch buffer
-    if exists('b:giddy_buffer')
-        if b:giddy_buffer ==# s:GCOMMIT_BUFFER
-            return
-        else
-            silent! bwipe
-        endif
+    "if exists('b:giddy_buffer')
+        "if b:giddy_buffer ==# s:GCOMMIT_BUFFER
+            "return
+        "else
+            "silent! bwipe
+        "endif
+    "endif
+
+    " Check if we're already in a giddy scratch buffer
+    if exists('b:giddy_buffer') && b:giddy_buffer !=# s:GCOMMIT_BUFFER
+        silent! bdelete
     endif
 
     if s:SetTopLevel() != 0
@@ -941,6 +960,7 @@ function! Gcommit(arg) abort
     silent! execute 'split ' . s:PreparePath(l:top_level) . '/.git/COMMIT_MSG'
     setlocal modifiable
     setlocal filetype=gitcommit
+    setlocal bufhidden=unload
 
     " Save these values from the parent buffer.
     let b:top_level = l:top_level
@@ -972,13 +992,14 @@ function! Gcommit(arg) abort
     nnoremap <buffer> <silent> zk   ?^@@<CR>
     nnoremap <buffer> <silent> zf   :NextDiffFile<CR>
     nnoremap <buffer> <silent> zF   :PrevDiffFile<CR>
-    nnoremap <buffer> <silent> q    :bwipe<CR>
+    "nnoremap <buffer> <silent> q    :bwipe<CR>
+    nnoremap <buffer> <silent> q    :bdelete<CR>
 
     " Setup autocommands that get run when we write and unload this commit buffer.
     " They will decide whether to commit or abort the changes.
 
     command! -buffer CommitBufferAuBufWrite call s:CommitBufferAuBufWrite()
-    command! -buffer CommitBufferAuBufUnload call s:CommitBufferAuBufUnload ()
+    command! -buffer CommitBufferAuBufUnload call s:CommitBufferAuBufUnload()
 
     au! BufWrite   <buffer> CommitBufferAuBufWrite
     au! BufUnload  <buffer> CommitBufferAuBufUnload
@@ -986,12 +1007,22 @@ endfunction
 
 function! Glog(arg, ...) abort
     " Check if we're already in a giddy scratch buffer
+    "if exists('b:giddy_buffer')
+        "if a:arg != s:ALL
+            "call s:Error("Can't log a giddy buffer. Did you mean :GlogAll?")
+            "return
+        "endif
+        ""silent! bwipe
+    "endif
+
+    " Check if we're already in a giddy scratch buffer
     if exists('b:giddy_buffer')
         if a:arg != s:ALL
             call s:Error("Can't log a giddy buffer. Did you mean :GlogAll?")
             return
+        elseif b:giddy_buffer !=# s:GLOG_BUFFER
+            silent! bdelete
         endif
-        silent! bwipe
     endif
 
     if s:SetTopLevel() != 0
@@ -1053,7 +1084,8 @@ function! Glog(arg, ...) abort
     command! -buffer ToggleHelp         :call s:ShowHelp(s:LOG_HELP, s:TOGGLE)
 
     nnoremap <buffer> <silent> <F1>     :ToggleHelp<CR>
-    nnoremap <buffer> <silent> q        :bwipe<CR>
+    "nnoremap <buffer> <silent> q        :bwipe<CR>
+    nnoremap <buffer> <silent> q        :bdelete<CR>
     nnoremap <buffer> <silent> d        :DiffVersion<CR>
     nnoremap <buffer> <silent> <space>  :DiffLogTag<CR>
 endfunction
