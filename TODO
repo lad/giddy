@@ -2,6 +2,7 @@
   check for this in all commands.
 - Redo scratch buffer create/destroy. By recreating buffers instead of re-use
   the buffer numbers of a vim session increase making them unwieldy.
+- Reopen changes files: need better checks for changed files on some commands
 - Implement an easier way to push gerrit reviews to different branches
 - In the diff window, hit "e" to edit the file being diffed at the offset of the diff under
   the cursor
