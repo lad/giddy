@@ -12,32 +12,39 @@
 "                             size of the git split window.
 "                           - The default the value is 0.5 (max: 1)
 
-"Split window for giddy buffer:
-"   Status
-"      Gstatus<CR>
-"   Diff
-"      Gdiff<CR>
-"      GdiffAll<CR>
-"      GdiffStaged<CR>
-"      GdiffStagedAll<CR>
-"      GdiffUpstream<CR>
-"   Commit
-"      Gcommit<CR>
-"      GcommitAmend<CR>
-"   Log
-"      Glog<CR>
-"      GlogAll<CR>
-"      GlogUpstream<CR>
-"Non-Window:
-"   Gbranch<CR>
-"   Gbranches<CR>
-"   GcreateBranch<CR>
-"   GdeleteBranch<CR>
-"   Gpull<CR>
-"   Gpush<CR>
-"   Greview<CR>
-"   Gstash<CR>
-"   GstashPop<CR>
+" Shortcuts for all commands are defined at the bottom on the file.
+" Many commands open a split window and you to interact with the result of the
+" git command. For example when showing output of git status you can stage,
+" unstage and checkout any of the listed files. Press <F1> in the split
+" windows for a list of keys.
+"
+"   Area            Function            Shortcut
+"   Status          Gstatus             gs
+"
+"   Diff            Gdiff               gd
+"                   GdiffAll            gD
+"                   GdiffStaged         gj
+"                   GdiffStagedAll      gJ
+"                   GdiffUpstream       gu
+"
+"   Commit          Gcommit             gC
+"                   GcommitAmend        gA
+"
+"   Log             Glog                gl
+"                   GlogAll             gL
+"                   GlogUpstream        g;
+"
+"   Branches        Gbranch             gb
+"                   Gbranches           gB
+"                   GcreateBranch       gc
+"                   GdeleteBranch       gT
+"
+"   Push/Pull       Gpull               gp
+"                   Gpush               gP
+"                   Greview             gR (git/gerrit review)
+"
+"   Stash           Gstash              gk
+"                   GstashPop           gK
 
 if exists('g:giddy_loaded') && !exists('g:giddy_dev')
     finish
@@ -1118,7 +1125,7 @@ function! Gstash() abort
     if s:SetTopLevel() != 0
         return
     endif
-    let l:output = Git('stash')
+    let l:output = Git('stash -u -a')
     if l:output != -1
         if split(l:output, '\n')[0] == s:NO_LOCK_CHANGES_TO_SAVE
             call s:Error(l:output)
@@ -1143,6 +1150,8 @@ function! GstashPop() abort
 endfunction
 
 " -------------- SHORTCUTS ------------------
+
+" No leader defined. Feel free to add.
 
 nnoremap gs                 :Gstatus<CR>
 nnoremap gb                 :Gbranch<CR>
