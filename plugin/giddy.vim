@@ -203,7 +203,7 @@ function! s:SetTopLevel() abort
     " Set b:top_level to the path of the repository containing the current file
     if !exists('b:top_level')
         " git rev-parse can determine the top level
-        let l:dir = s:PreparePath(fnamemodify(expand('%:p'), ':h'))
+        let l:dir = s:PreparePath(fnamemodify(resolve(expand('%:p')), ':h'))
         let l:output = system('cd ' . l:dir . '; git rev-parse --show-toplevel')
         if !v:shell_error && l:output !~? '^fatal'
             " No errors
