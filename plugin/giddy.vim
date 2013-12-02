@@ -86,7 +86,7 @@ let s:MATCH_RESET = 'use "git reset HEAD <file>..."'
 let s:MATCH_CHECKOUT = 'use "git checkout -- <file>..."'
 let s:MATCH_UNTRACKED = 'Untracked files:'
 
-let s:NOTHING_TO_COMMIT = 'nothing to commit (working directory clean)'
+let s:NOTHING_TO_COMMIT = 'nothing to commit.*'
 let s:NO_CHANGES = 'no changes added to commit'
 let s:EVERYTHING_UP_TO_DATE = 'Everything up-to-date'
 let s:ALREADY_UP_TO_DATE = 'Already up-to-date'
@@ -700,7 +700,7 @@ function! Gstatus(...) abort
     if l:output != -1
         let l:lines = split(l:output, '\n')
         let l:num_lines = len(l:lines)
-        if l:num_lines > 0 && l:lines[l:num_lines - 1] == s:NOTHING_TO_COMMIT
+        if l:num_lines > 0 && l:lines[l:num_lines - 1] =~? s:NOTHING_TO_COMMIT
             let l:nr = bufnr(s:GSTATUS_BUFFER)
             if l:nr != -1
                 execute l:nr . 'bwipe'
